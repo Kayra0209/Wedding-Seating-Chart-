@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, User, Baby, Armchair, Leaf, MapPin, Save, Users, Heart } from 'lucide-react';
+import { X, User, Baby, Armchair, Leaf, MapPin, Save, Users, Heart, Gift, Check } from 'lucide-react';
 import { GuestGroup } from '../types';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -23,6 +23,8 @@ interface GuestFormModalProps {
     vegetarian: number;
     relationship: string;
     attending: boolean;
+    giftCount: number;
+    giftReceived: boolean;
   };
   setForm: React.Dispatch<React.SetStateAction<any>>;
   isEditing: boolean;
@@ -141,6 +143,62 @@ export const GuestFormModal: React.FC<GuestFormModalProps> = ({
                 onChange={e => setForm(prev => ({ ...prev, vegetarian: parseInt(e.target.value) || 0 }))}
                 className="w-full px-4 py-3 bg-cream border border-cream-dark rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold transition-all"
               />
+            </div>
+          </div>
+
+          {/* Gift Info */}
+          <div className="space-y-4 pt-4 border-t border-cream-dark">
+            <h3 className="text-xs font-bold text-wine/40 uppercase tracking-widest flex items-center gap-2">
+              <Gift size={14} /> 喜餅管理
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-wine/30 uppercase tracking-widest ml-1">喜餅份數</label>
+                <div className="flex items-center gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, giftCount: Math.max(0, prev.giftCount - 1) }))}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg bg-cream border border-cream-dark text-wine/60 hover:bg-cream-dark transition-all"
+                  >
+                    -
+                  </button>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={form.giftCount}
+                    onChange={e => setForm(prev => ({ ...prev, giftCount: parseInt(e.target.value) || 0 }))}
+                    className="flex-1 px-4 py-3 bg-cream border border-cream-dark rounded-lg text-sm text-center font-mono font-bold focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold transition-all"
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, giftCount: prev.giftCount + 1 }))}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg bg-cream border border-cream-dark text-wine/60 hover:bg-cream-dark transition-all"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-wine/30 uppercase tracking-widest ml-1">領取狀態</label>
+                <button 
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, giftReceived: !prev.giftReceived }))}
+                  className={cn(
+                    "w-full flex items-center justify-center gap-3 py-3 rounded-lg border font-bold transition-all",
+                    form.giftReceived 
+                      ? "bg-gold border-gold text-white shadow-sm" 
+                      : "bg-cream border-cream-dark text-wine/40 hover:border-gold/50"
+                  )}
+                >
+                  <div className={cn(
+                    "w-5 h-5 rounded-sm border flex items-center justify-center transition-all",
+                    form.giftReceived ? "bg-white text-gold border-white" : "bg-white border-cream-dark text-transparent"
+                  )}>
+                    <Check size={12} strokeWidth={4} />
+                  </div>
+                  {form.giftReceived ? '已領取喜餅' : '尚未領取'}
+                </button>
+              </div>
             </div>
           </div>
 

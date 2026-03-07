@@ -12,6 +12,8 @@ export interface GuestGroup {
   isPrepared?: boolean;
   source: 'sheet' | 'manual';
   relationship: string;
+  giftReceived?: boolean;
+  giftCount?: number;
 }
 
 export interface Table {

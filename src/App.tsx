@@ -42,7 +42,10 @@ import {
   Copy,
   UserPlus,
   UserCheck,
-  Edit
+  Edit,
+  Edit2,
+  Gift,
+  Search
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { TableContainer } from './components/TableContainer';
@@ -80,13 +83,17 @@ export default function App() {
   const [csvUrl, setCsvUrl] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [giftSearchQuery, setGiftSearchQuery] = useState('');
+  const [giftTagFilter, setGiftTagFilter] = useState<string | null>(null);
+  const [invitationSearchQuery, setInvitationSearchQuery] = useState('');
+  const [invitationTagFilter, setInvitationTagFilter] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [relationshipFilter, setRelationshipFilter] = useState('all');
   const [activeGuest, setActiveGuest] = useState<GuestGroup | null>(null);
   const [activeTableId, setActiveTableId] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'seating' | 'overview' | 'invitations'>('seating');
+  const [currentView, setCurrentView] = useState<'seating' | 'overview' | 'invitations' | 'gifts'>('seating');
   const [isManualFormOpen, setIsManualFormOpen] = useState(false);
   const [editingGuest, setEditingGuest] = useState<GuestGroup | null>(null);
   const [manualForm, setManualForm] = useState({ 
@@ -98,7 +105,9 @@ export default function App() {
     childChairs: 0,
     vegetarian: 0,
     relationship: '',
-    attending: true
+    attending: true,
+    giftCount: 1,
+    giftReceived: false
   });
 
   const handleEditGuest = (guest: GuestGroup) => {
@@ -112,7 +121,9 @@ export default function App() {
       childChairs: guest.childChairs,
       vegetarian: guest.vegetarian,
       relationship: guest.relationship || '',
-      attending: guest.attending
+      attending: guest.attending,
+      giftCount: guest.giftCount || 1,
+      giftReceived: guest.giftReceived || false
     });
     setIsManualFormOpen(true);
   };
@@ -125,6 +136,24 @@ export default function App() {
     const tableGuests = state.tables.flatMap(t => t.guests);
     return [...state.unassigned, ...tableGuests];
   }, [state]);
+
+  const uniqueTags = useMemo(() => {
+    const tags = new Set<string>();
+    allGuests.forEach(g => {
+      if (g.relationship) tags.add(g.relationship);
+    });
+    return Array.from(tags).sort();
+  }, [allGuests]);
+
+  const filteredGiftGuests = useMemo(() => {
+    return allGuests.filter(guest => {
+      const matchesTag = !giftTagFilter || guest.relationship === giftTagFilter;
+      const matchesSearch = !giftSearchQuery || 
+        guest.name.toLowerCase().includes(giftSearchQuery.toLowerCase()) ||
+        (guest.relationship && guest.relationship.toLowerCase().includes(giftSearchQuery.toLowerCase()));
+      return matchesTag && matchesSearch;
+    });
+  }, [allGuests, giftTagFilter, giftSearchQuery]);
 
   const stats = useMemo(() => {
     const attending = allGuests.filter(g => g.attending);
@@ -141,6 +170,8 @@ export default function App() {
       manualCount: invitationList.filter(g => g.source === 'manual').length,
       totalSeated: state.tables.reduce((s, t) => s + t.guests.reduce((gs, g) => gs + g.total, 0), 0),
       totalUnassigned: state.unassigned.reduce((s, g) => s + g.total, 0),
+      totalGifts: allGuests.reduce((s, g) => s + (g.giftCount || 1), 0),
+      receivedGifts: allGuests.filter(g => g.giftReceived).reduce((s, g) => s + (g.giftCount || 1), 0),
     };
   }, [allGuests, state]);
 
@@ -513,6 +544,47 @@ export default function App() {
     }));
   };
 
+  const filteredInvitationGuests = useMemo(() => {
+    return stats.needInvitation.filter(guest => {
+      const matchesTag = !invitationTagFilter || guest.relationship === invitationTagFilter;
+      const matchesSearch = !invitationSearchQuery || 
+        guest.name.toLowerCase().includes(invitationSearchQuery.toLowerCase()) ||
+        (guest.address && guest.address.toLowerCase().includes(invitationSearchQuery.toLowerCase())) ||
+        (guest.relationship && guest.relationship.toLowerCase().includes(invitationSearchQuery.toLowerCase()));
+      return matchesTag && matchesSearch;
+    });
+  }, [stats.needInvitation, invitationTagFilter, invitationSearchQuery]);
+
+  const handleToggleGift = (id: string) => {
+    setState(prev => ({
+      ...prev,
+      unassigned: prev.unassigned.map(g => 
+        g.id === id ? { ...g, giftReceived: !g.giftReceived } : g
+      ),
+      tables: prev.tables.map(t => ({
+        ...t,
+        guests: t.guests.map(g => 
+          g.id === id ? { ...g, giftReceived: !g.giftReceived } : g
+        )
+      }))
+    }));
+  };
+
+  const handleUpdateGiftCount = (id: string, count: number) => {
+    setState(prev => ({
+      ...prev,
+      unassigned: prev.unassigned.map(g => 
+        g.id === id ? { ...g, giftCount: Math.max(0, count) } : g
+      ),
+      tables: prev.tables.map(t => ({
+        ...t,
+        guests: t.guests.map(g => 
+          g.id === id ? { ...g, giftCount: Math.max(0, count) } : g
+        )
+      }))
+    }));
+  };
+
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     if (active.data.current?.guest) {
@@ -690,7 +762,9 @@ export default function App() {
       childChairs: 0,
       vegetarian: 0,
       relationship: '',
-      attending: true
+      attending: true,
+      giftCount: 1,
+      giftReceived: false
     });
   };
 
@@ -775,6 +849,16 @@ export default function App() {
                 >
                   <Mail size={18} />
                   <span>喜帖寄送</span>
+                </button>
+                <button 
+                  onClick={() => setCurrentView('gifts')}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                    currentView === 'gifts' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
+                  )}
+                >
+                  <Gift size={18} />
+                  <span>喜餅管理</span>
                 </button>
               </nav>
             </div>
@@ -985,7 +1069,9 @@ export default function App() {
                   childChairs: 0,
                   vegetarian: 0,
                   relationship: '',
-                  attending: true
+                  attending: true,
+                  giftCount: 1,
+                  giftReceived: false
                 });
               }}
               onSubmit={handleSaveManual}
@@ -1079,6 +1165,225 @@ export default function App() {
                 </div>
               </motion.div>
             )}
+
+              {currentView === 'gifts' && (
+                <motion.div 
+                  key="gifts"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="p-12 max-w-6xl mx-auto"
+                >
+                  <div className="mb-12 flex justify-between items-end">
+                    <div>
+                      <h2 className="text-4xl font-bold text-wine font-serif mb-2">喜餅數量統計</h2>
+                      <p className="text-wine/30 uppercase tracking-widest text-[10px] font-bold">Wedding Gift Management</p>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="bg-white px-6 py-3 rounded-xl border border-cream-dark shadow-sm text-center">
+                        <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總喜餅數</span>
+                        <span className="text-2xl font-bold text-wine">{stats.totalGifts}</span>
+                      </div>
+                      <div className="bg-gold/10 px-6 py-3 rounded-xl border border-gold/20 shadow-sm text-center">
+                        <span className="block text-[10px] text-gold font-bold uppercase mb-1">已領取</span>
+                        <span className="text-2xl font-bold text-gold">{stats.receivedGifts}</span>
+                      </div>
+                      <div className="bg-wine/5 px-6 py-3 rounded-xl border border-wine/10 shadow-sm text-center">
+                        <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">剩餘</span>
+                        <span className="text-2xl font-bold text-wine/40">{stats.totalGifts - stats.receivedGifts}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl shadow-xl border border-cream-dark overflow-hidden">
+                    <div className="p-6 border-b border-cream-dark bg-cream flex flex-col gap-4">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-4">
+                          <h3 className="font-bold text-wine">賓客領取清單</h3>
+                          <button 
+                            onClick={() => {
+                              handleEditGuest({
+                                id: '',
+                                name: '',
+                                adults: 0,
+                                kids: 0,
+                                total: 0,
+                                attending: false,
+                                childChairs: 0,
+                                vegetarian: 0,
+                                source: 'manual',
+                                relationship: '喜餅紀錄',
+                                giftCount: 1,
+                                giftReceived: false
+                              } as GuestGroup);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-gold text-white text-[10px] font-bold rounded-md hover:bg-gold/90 transition-all"
+                          >
+                            <Plus size={14} />
+                            手動新增紀錄
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-wine/30" size={14} />
+                            <input 
+                              type="text"
+                              placeholder="搜尋姓名或標籤..."
+                              value={giftSearchQuery}
+                              onChange={(e) => setGiftSearchQuery(e.target.value)}
+                              className="pl-9 pr-4 py-2 bg-white border border-cream-dark rounded-lg text-xs focus:outline-none focus:border-gold/50 w-48"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => setGiftTagFilter(null)}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-bold transition-all border",
+                            !giftTagFilter 
+                              ? "bg-wine text-white border-wine" 
+                              : "bg-white text-wine/40 border-cream-dark hover:border-wine/20"
+                          )}
+                        >
+                          全部
+                        </button>
+                        {uniqueTags.map(tag => (
+                          <button
+                            key={tag}
+                            onClick={() => setGiftTagFilter(tag === giftTagFilter ? null : tag)}
+                            className={cn(
+                              "px-3 py-1 rounded-full text-[10px] font-bold transition-all border",
+                              giftTagFilter === tag 
+                                ? "bg-gold text-white border-gold" 
+                                : "bg-white text-wine/40 border-cream-dark hover:border-gold/20"
+                            )}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-cream/50 text-wine/40 text-[10px] font-bold uppercase tracking-widest border-b border-cream-dark">
+                          <th className="px-8 py-4 w-20">狀態</th>
+                          <th className="px-8 py-4">賓客姓名</th>
+                          <th className="px-8 py-4 w-32">數量</th>
+                          <th className="px-8 py-4">關係/標籤</th>
+                          <th className="px-8 py-4 text-right">操作</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredGiftGuests.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-8 py-20 text-center text-wine/20 italic">
+                              {giftSearchQuery || giftTagFilter ? '找不到符合條件的賓客。' : '目前沒有賓客資料，請先匯入名單或手動新增。'}
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredGiftGuests.map((guest) => (
+                            <tr 
+                              key={guest.id} 
+                              className={cn(
+                                "border-b border-cream-dark transition-colors",
+                                guest.giftReceived ? "bg-cream/20" : "hover:bg-cream/10"
+                              )}
+                            >
+                              <td className="px-8 py-6">
+                                <button 
+                                  onClick={() => handleToggleGift(guest.id)}
+                                  className={cn(
+                                    "w-6 h-6 rounded-sm border flex items-center justify-center transition-all",
+                                    guest.giftReceived 
+                                      ? "bg-gold border-gold text-white" 
+                                      : "bg-white border-cream-dark text-transparent hover:border-gold/50"
+                                  )}
+                                >
+                                  <Check size={14} strokeWidth={3} />
+                                </button>
+                              </td>
+                              <td className={cn(
+                                "px-8 py-6 font-bold transition-all",
+                                guest.giftReceived ? "text-wine/20 line-through" : "text-wine"
+                              )}>
+                                <div className="flex items-center gap-3">
+                                  {guest.name}
+                                  <span className={cn(
+                                    "text-[9px] px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-tighter",
+                                    guest.source === 'sheet' 
+                                      ? "bg-cream-dark text-wine/30" 
+                                      : "bg-gold/10 text-gold border border-gold/10"
+                                  )}>
+                                    {guest.source === 'sheet' ? '表單' : '手動'}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-8 py-6">
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) - 1)}
+                                    className="w-6 h-6 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all"
+                                  >
+                                    -
+                                  </button>
+                                  <span className={cn(
+                                    "font-mono font-bold w-8 text-center",
+                                    guest.giftReceived ? "text-wine/20" : "text-wine"
+                                  )}>
+                                    {guest.giftCount || 1}
+                                  </span>
+                                  <button 
+                                    onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) + 1)}
+                                    className="w-6 h-6 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </td>
+                              <td className={cn(
+                                "px-8 py-6 transition-all",
+                                guest.giftReceived ? "text-wine/10" : "text-wine/50"
+                              )}>
+                                {guest.relationship || '---'}
+                              </td>
+                              <td className="px-8 py-6 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <button 
+                                    onClick={() => handleEditGuest(guest)}
+                                    className="p-2 text-wine/30 hover:text-gold hover:bg-gold/5 rounded-md transition-all"
+                                    title="編輯賓客"
+                                  >
+                                    <Edit2 size={18} />
+                                  </button>
+                                  {guest.source === 'manual' && (
+                                    <button 
+                                      onClick={() => handleDeleteManual(guest.id)}
+                                      className="p-2 text-wine/30 hover:text-gold hover:bg-gold/5 rounded-md transition-all"
+                                      title="刪除紀錄"
+                                    >
+                                      <Trash2 size={18} />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="mt-8 p-6 bg-wine/5 rounded-2xl border border-wine/10 flex items-start gap-4">
+                    <Info size={20} className="text-wine mt-0.5" />
+                    <div className="text-xs text-wine leading-relaxed">
+                      <strong>喜餅統計說明：</strong> 系統會自動同步所有賓客名單。您可以點擊左側核取方塊標記「已領取」，或點擊數量欄位的「+ / -」來調整該賓客應領取的喜餅份數。手動新增的紀錄不會影響座位表的出席人數統計。
+                    </div>
+                  </div>
+                </motion.div>
+              )}
 
               {currentView === 'overview' && (
                 <motion.div 
@@ -1183,7 +1488,7 @@ export default function App() {
                       <h2 className="text-4xl font-bold text-wine font-serif mb-2">喜帖寄送清單</h2>
                       <p className="text-wine/30 uppercase tracking-widest text-[10px] font-bold">Wedding Invitation Mailing List</p>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
+                    <div className="flex flex-col items-end gap-4">
                       <div className="flex gap-3">
                         <button 
                           onClick={() => {
@@ -1197,7 +1502,9 @@ export default function App() {
                               childChairs: 0,
                               vegetarian: 0,
                               relationship: '',
-                              attending: true
+                              attending: true,
+                              giftCount: 1,
+                              giftReceived: false
                             });
                             setIsManualFormOpen(true);
                           }}
@@ -1215,6 +1522,46 @@ export default function App() {
                           </div>
                         </div>
                       </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-wine/30" size={14} />
+                          <input 
+                            type="text"
+                            placeholder="搜尋姓名、地址或標籤..."
+                            value={invitationSearchQuery}
+                            onChange={(e) => setInvitationSearchQuery(e.target.value)}
+                            className="pl-9 pr-4 py-2 bg-white border border-cream-dark rounded-lg text-xs focus:outline-none focus:border-gold/50 w-64"
+                          />
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-w-md justify-end">
+                          <button
+                            onClick={() => setInvitationTagFilter(null)}
+                            className={cn(
+                              "px-2.5 py-1 rounded-md text-[10px] font-bold transition-all border",
+                              !invitationTagFilter 
+                                ? "bg-wine text-white border-wine" 
+                                : "bg-white text-wine/40 border-cream-dark hover:border-gold/20"
+                            )}
+                          >
+                            全部
+                          </button>
+                          {uniqueTags.filter(tag => stats.needInvitation.some(g => g.relationship === tag)).map(tag => (
+                            <button
+                              key={tag}
+                              onClick={() => setInvitationTagFilter(tag === invitationTagFilter ? null : tag)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-md text-[10px] font-bold transition-all border",
+                                invitationTagFilter === tag 
+                                  ? "bg-gold text-white border-gold" 
+                                  : "bg-white text-wine/40 border-cream-dark hover:border-gold/20"
+                                )}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -1230,14 +1577,14 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {stats.needInvitation.length === 0 ? (
+                        {filteredInvitationGuests.length === 0 ? (
                           <tr>
                             <td colSpan={5} className="px-8 py-20 text-center text-wine/20 italic">
-                              目前沒有需要寄送喜帖的賓客資料 (收件地址欄位為空)
+                              {invitationSearchQuery || invitationTagFilter ? '找不到符合條件的賓客。' : '目前沒有需要寄送喜帖的賓客資料 (收件地址欄位為空)'}
                             </td>
                           </tr>
                         ) : (
-                          stats.needInvitation.map((guest, idx) => (
+                          filteredInvitationGuests.map((guest, idx) => (
                             <tr key={guest.id} className={cn(
                               "border-b border-cream-dark hover:bg-cream/50 transition-colors group",
                               idx === stats.needInvitation.length - 1 && "border-0",
