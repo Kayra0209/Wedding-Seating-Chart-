@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   DndContext, 
   DragOverlay, 
@@ -21,6 +21,9 @@ import {
 import { 
   Plus, 
   Download, 
+  Upload,
+  FileJson,
+  FileSpreadsheet,
   Link as LinkIcon, 
   RefreshCw,
   Wine,
@@ -76,6 +79,7 @@ export default function App() {
 
   const [csvUrl, setCsvUrl] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [relationshipFilter, setRelationshipFilter] = useState('all');
@@ -401,6 +405,63 @@ export default function App() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `婚禮排座表-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBackupJSON = () => {
+    const dataStr = JSON.stringify(state, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `婚禮排座備份-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleRestoreJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const importedState = JSON.parse(content) as SeatingState;
+        
+        // Basic validation
+        if (!importedState.tables || !importedState.unassigned) {
+          throw new Error('無效的備份檔案格式');
+        }
+
+        if (window.confirm('確定要還原備份嗎？這將會覆蓋目前的進度。')) {
+          setState(importedState);
+          alert('還原成功！');
+        }
+      } catch (err) {
+        console.error('Restore failed:', err);
+        alert('還原失敗，請確保檔案格式正確。');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    event.target.value = '';
+  };
+
+  const handleDownloadTemplate = () => {
+    const headers = ['姓名', '是否出席', '大人', '兒童', '兒童椅', '素食', '關係/標籤', '備註'];
+    const example = ['王小明', '準時出席', '2', '1', '1', '0', '男方親戚', ''];
+    const csvContent = [headers.join(','), example.join(',')].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `婚禮賓客名單範本.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -736,8 +797,40 @@ export default function App() {
                   </div>
                   <div className="p-8 space-y-6">
                     <div className="space-y-3">
-                      <h3 className="text-sm font-bold text-wine/80 uppercase tracking-widest">資料管理</h3>
+                      <h3 className="text-sm font-bold text-wine/80 uppercase tracking-widest">資料同步與備份</h3>
+                      <p className="text-[10px] text-wine/40 leading-relaxed bg-wine/5 p-3 rounded-lg">
+                        💡 提示：若要在不同裝置同步進度，請先在原裝置點擊「備份進度」下載檔案，再到新裝置點擊「還原進度」上傳該檔案即可。
+                      </p>
                       <div className="grid grid-cols-1 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            onClick={() => {
+                              handleBackupJSON();
+                              setIsSettingsOpen(false);
+                            }}
+                            className="flex flex-col items-center justify-center gap-2 py-4 bg-gold/5 hover:bg-gold/10 text-gold rounded-xl font-bold transition-all border border-gold/20"
+                          >
+                            <FileJson size={24} />
+                            <span className="text-xs">備份進度 (JSON)</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              fileInputRef.current?.click();
+                            }}
+                            className="flex flex-col items-center justify-center gap-2 py-4 bg-cream hover:bg-cream-dark text-wine rounded-xl font-bold transition-all border border-cream-dark"
+                          >
+                            <Upload size={24} />
+                            <span className="text-xs">還原進度 (JSON)</span>
+                          </button>
+                          <input 
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleRestoreJSON}
+                            accept=".json"
+                            className="hidden"
+                          />
+                        </div>
+
                         <button
                           onClick={() => {
                             handleExport();
@@ -745,17 +838,18 @@ export default function App() {
                           }}
                           className="flex items-center justify-center gap-2 py-4 bg-cream hover:bg-cream-dark text-wine rounded-xl font-bold transition-all border border-cream-dark"
                         >
-                          <Download size={20} />
-                          匯出目前座位安排
+                          <FileSpreadsheet size={20} />
+                          匯出座位安排 (CSV)
                         </button>
+
                         <button
                           onClick={() => {
                             handleReset();
                             setIsSettingsOpen(false);
                           }}
-                          className="flex items-center justify-center gap-2 py-4 bg-gold/5 hover:bg-gold/10 text-gold rounded-xl font-bold transition-all border border-gold/20"
+                          className="flex items-center justify-center gap-2 py-3 text-wine/40 hover:text-gold transition-all text-xs font-medium"
                         >
-                          <Trash2 size={20} />
+                          <Trash2 size={14} />
                           清空所有資料 (重設)
                         </button>
                       </div>
@@ -862,6 +956,17 @@ export default function App() {
                         >
                           {isImporting ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
                           <span>匯入</span>
+                        </button>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <p className="text-[10px] text-wine/40">
+                          * 支援 Google Sheets 發布的 CSV 網址
+                        </p>
+                        <button 
+                          onClick={handleDownloadTemplate}
+                          className="text-[10px] text-gold hover:underline font-bold"
+                        >
+                          下載 CSV 範例範本
                         </button>
                       </div>
                     </div>
