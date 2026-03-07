@@ -820,6 +820,49 @@ export default function App() {
                     </button>
                   </div>
                   <div className="p-8 space-y-6">
+                    {/* Import Section */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-wine font-bold">
+                        <LinkIcon size={18} className="text-gold" />
+                        <h3 className="text-sm">匯入 Google Sheets 賓客名單</h3>
+                        <div className="group relative ml-1">
+                          <Info size={14} className="text-wine/20 cursor-help" />
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-wine text-white text-[10px] rounded-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl leading-relaxed">
+                            請至 Google Sheets 點選「檔案」{'>'}「共用」{'>'}「發布到網路」，選擇「整份文件」與「逗號分隔值 (.csv)」，再將產生的網址貼至下方。
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          value={csvUrl}
+                          onChange={(e) => setCsvUrl(e.target.value)}
+                          placeholder="貼上 Google Sheets CSV 網址..."
+                          className="flex-1 px-4 py-2 bg-cream border border-cream-dark rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold transition-all"
+                        />
+                        <button 
+                          onClick={handleImport}
+                          disabled={isImporting || !csvUrl}
+                          className="px-4 py-2 bg-wine text-white font-bold rounded-lg shadow-sm hover:bg-wine/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs"
+                        >
+                          {isImporting ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                          <span>匯入</span>
+                        </button>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <p className="text-[10px] text-wine/40">
+                          * 支援 Google Sheets 發布的 CSV 網址
+                        </p>
+                        <button 
+                          onClick={handleDownloadTemplate}
+                          className="text-[10px] text-gold hover:underline font-bold"
+                        >
+                          下載 CSV 範例範本
+                        </button>
+                      </div>
+                      <div className="h-px bg-cream-dark mt-2" />
+                    </div>
+
                     <div className="space-y-3">
                       <h3 className="text-sm font-bold text-wine/80 uppercase tracking-widest">資料同步與備份</h3>
                       <p className="text-[10px] text-wine/40 leading-relaxed bg-wine/5 p-3 rounded-lg">
@@ -964,49 +1007,7 @@ export default function App() {
                   transition={{ duration: 0.3 }}
                   className="p-8"
                 >
-                  {/* Import Section */}
-                  <div className="max-w-4xl mx-auto mb-10">
-                    <div className="bg-white rounded-xl shadow-sm border border-cream-dark p-6 flex flex-col gap-4">
-                      <div className="flex items-center gap-2 text-wine font-bold">
-                        <LinkIcon size={20} className="text-gold" />
-                        <h3>匯入 Google Sheets 賓客名單</h3>
-                        <div className="group relative ml-1">
-                          <Info size={14} className="text-wine/20 cursor-help" />
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-wine text-white text-[10px] rounded-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl leading-relaxed">
-                            請至 Google Sheets 點選「檔案」{'>'}「共用」{'>'}「發布到網路」，選擇「整份文件」與「逗號分隔值 (.csv)」，再將產生的網址貼至下方。
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-3">
-                        <input 
-                          type="text" 
-                          value={csvUrl}
-                          onChange={(e) => setCsvUrl(e.target.value)}
-                          placeholder="貼上 Google Sheets CSV 網址..."
-                          className="flex-1 px-5 py-3 bg-cream border border-cream-dark rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold transition-all"
-                        />
-                        <button 
-                          onClick={handleImport}
-                          disabled={isImporting || !csvUrl}
-                          className="px-8 py-3 bg-wine text-white font-bold rounded-lg shadow-sm hover:bg-wine/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                        >
-                          {isImporting ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
-                          <span>匯入</span>
-                        </button>
-                      </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <p className="text-[10px] text-wine/40">
-                          * 支援 Google Sheets 發布的 CSV 網址
-                        </p>
-                        <button 
-                          onClick={handleDownloadTemplate}
-                          className="text-[10px] text-gold hover:underline font-bold"
-                        >
-                          下載 CSV 範例範本
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+
 
                   {/* Tables Grid */}
                   <div className="max-w-7xl mx-auto">
