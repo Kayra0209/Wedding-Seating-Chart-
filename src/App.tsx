@@ -304,11 +304,20 @@ export default function App() {
       }
     }
 
-    setState(prev => ({
-      ...prev,
-      unassigned: [...prev.unassigned, ...table.guests],
-      tables: prev.tables.filter(t => t.id !== id),
-    }));
+    setState(prev => {
+      const updatedTables = prev.tables
+        .filter(t => t.id !== id)
+        .map((t: Table, index: number) => ({
+          ...t,
+          number: index + 1
+        }));
+
+      return {
+        ...prev,
+        unassigned: [...prev.unassigned, ...table.guests],
+        tables: updatedTables,
+      };
+    });
   };
 
   const handleReset = () => {
@@ -439,9 +448,17 @@ export default function App() {
         setState(prev => {
           const oldIndex = prev.tables.findIndex(t => t.id === activeId);
           const newIndex = prev.tables.findIndex(t => t.id === overId);
+          const movedTables = arrayMove(prev.tables, oldIndex, newIndex);
+          
+          // Auto-update table numbers sequentially
+          const updatedTables = movedTables.map((t: Table, index: number) => ({
+            ...t,
+            number: index + 1
+          }));
+
           return {
             ...prev,
-            tables: arrayMove(prev.tables, oldIndex, newIndex)
+            tables: updatedTables
           };
         });
       }
@@ -676,14 +693,6 @@ export default function App() {
                 title="系統設定"
               >
                 <SettingsIcon size={20} />
-              </button>
-              <button 
-                onClick={handleReset}
-                className="flex items-center gap-2 px-5 py-2.5 bg-wine/5 hover:bg-gold/10 text-wine/40 hover:text-gold font-bold rounded-xl border border-wine/10 hover:border-gold/20 transition-all active:scale-95"
-                title="清空所有資料"
-              >
-                <Trash2 size={18} />
-                <span className="hidden sm:inline">清空資料</span>
               </button>
               <button 
                 onClick={handleExport}
