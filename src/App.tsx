@@ -45,7 +45,9 @@ import {
   Edit,
   Edit2,
   Gift,
-  Search
+  Search,
+  AlertCircle,
+  ArrowRight
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { TableContainer } from './components/TableContainer';
@@ -93,7 +95,8 @@ export default function App() {
   const [relationshipFilter, setRelationshipFilter] = useState('all');
   const [activeGuest, setActiveGuest] = useState<GuestGroup | null>(null);
   const [activeTableId, setActiveTableId] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'seating' | 'overview' | 'invitations' | 'gifts'>('seating');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'seating' | 'management' | 'settings'>('dashboard');
+  const [managementSubTab, setManagementSubTab] = useState<'invitations' | 'gifts'>('invitations');
   const [isManualFormOpen, setIsManualFormOpen] = useState(false);
   const [editingGuest, setEditingGuest] = useState<GuestGroup | null>(null);
   const [manualForm, setManualForm] = useState({ 
@@ -158,9 +161,14 @@ export default function App() {
   const stats = useMemo(() => {
     const attending = allGuests.filter(g => g.attending);
     const invitationList = attending.filter(g => g.address && g.address.trim().length > 0);
+    const totalSeated = state.tables.reduce((s, t) => s + t.guests.reduce((gs, g) => gs + g.total, 0), 0);
+    const totalPeople = attending.reduce((s, g) => s + g.total, 0);
+    const totalGifts = allGuests.reduce((s, g) => s + (g.giftCount || 1), 0);
+    const receivedGifts = allGuests.filter(g => g.giftReceived).reduce((s, g) => s + (g.giftCount || 1), 0);
+    
     return {
       totalRespondents: attending.length,
-      totalPeople: attending.reduce((s, g) => s + g.total, 0),
+      totalPeople,
       totalAdults: attending.reduce((s, g) => s + g.adults, 0),
       totalKids: attending.reduce((s, g) => s + g.kids, 0),
       totalChairs: attending.reduce((s, g) => s + g.childChairs, 0),
@@ -168,10 +176,15 @@ export default function App() {
       needInvitation: invitationList,
       sheetCount: invitationList.filter(g => g.source === 'sheet').length,
       manualCount: invitationList.filter(g => g.source === 'manual').length,
-      totalSeated: state.tables.reduce((s, t) => s + t.guests.reduce((gs, g) => gs + g.total, 0), 0),
+      totalSeated,
       totalUnassigned: state.unassigned.reduce((s, g) => s + g.total, 0),
-      totalGifts: allGuests.reduce((s, g) => s + (g.giftCount || 1), 0),
-      receivedGifts: allGuests.filter(g => g.giftReceived).reduce((s, g) => s + (g.giftCount || 1), 0),
+      totalGifts,
+      receivedGifts,
+      seatingProgress: totalPeople > 0 ? Math.round((totalSeated / totalPeople) * 100) : 0,
+      giftProgress: totalGifts > 0 ? Math.round((receivedGifts / totalGifts) * 100) : 0,
+      invitationProgress: invitationList.length > 0 ? Math.round((invitationList.filter(g => g.isPrepared).length / invitationList.length) * 100) : 0,
+      tablesCount: state.tables.length,
+      activeTables: state.tables.filter(t => t.guests.length > 0).length,
     };
   }, [allGuests, state]);
 
@@ -439,6 +452,35 @@ export default function App() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `婚禮排座表-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportInvitations = () => {
+    const headers = ['姓名', '郵遞區號', '收件地址', '關係/標籤', '大人', '兒童', '總人數', '備註'];
+    const rows = stats.needInvitation.map(g => [
+      g.name,
+      g.zipCode || '',
+      g.address || '',
+      g.relationship || '',
+      g.adults.toString(),
+      g.kids.toString(),
+      g.total.toString(),
+      g.note || ''
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `喜帖寄送名單-${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -821,44 +863,34 @@ export default function App() {
               {/* Navigation */}
               <nav className="flex items-center bg-cream-dark p-1 rounded-xl border border-cream-dark">
                 <button 
+                  onClick={() => setCurrentView('dashboard')}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                    currentView === 'dashboard' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
+                  )}
+                >
+                  <LayoutDashboard size={18} />
+                  <span>儀表板</span>
+                </button>
+                <button 
                   onClick={() => setCurrentView('seating')}
                   className={cn(
                     "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
                     currentView === 'seating' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
                   )}
                 >
-                  <LayoutDashboard size={18} />
+                  <Armchair size={18} />
                   <span>座位安排</span>
                 </button>
                 <button 
-                  onClick={() => setCurrentView('overview')}
+                  onClick={() => setCurrentView('management')}
                   className={cn(
                     "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                    currentView === 'overview' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
+                    currentView === 'management' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
                   )}
                 >
-                  <PieChart size={18} />
-                  <span>統計總覽</span>
-                </button>
-                <button 
-                  onClick={() => setCurrentView('invitations')}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                    currentView === 'invitations' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
-                  )}
-                >
-                  <Mail size={18} />
-                  <span>喜帖寄送</span>
-                </button>
-                <button 
-                  onClick={() => setCurrentView('gifts')}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                    currentView === 'gifts' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
-                  )}
-                >
-                  <Gift size={18} />
-                  <span>喜餅管理</span>
+                  <Check size={18} />
+                  <span>進度管理</span>
                 </button>
               </nav>
             </div>
@@ -1166,63 +1198,416 @@ export default function App() {
               </motion.div>
             )}
 
-              {currentView === 'gifts' && (
+              {currentView === 'dashboard' && (
                 <motion.div 
-                  key="gifts"
+                  key="dashboard"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                  className="p-12 max-w-6xl mx-auto"
+                  className="p-12 max-w-7xl mx-auto"
                 >
-                  <div className="mb-12 flex justify-between items-end">
-                    <div>
-                      <h2 className="text-4xl font-bold text-wine font-serif mb-2">喜餅數量統計</h2>
-                      <p className="text-wine/30 uppercase tracking-widest text-[10px] font-bold">Wedding Gift Management</p>
+                  <div className="mb-12">
+                    <h2 className="text-4xl font-bold text-wine font-serif mb-2">婚禮管理儀表板</h2>
+                    <p className="text-wine/30 uppercase tracking-widest text-[10px] font-bold">Wedding Management Dashboard</p>
+                  </div>
+
+                  {/* KPI Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-cream-dark">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="p-3 bg-wine/5 rounded-xl text-wine">
+                          <Users size={24} />
+                        </div>
+                        <span className="text-[10px] font-bold text-wine/30 uppercase tracking-wider">出席總人數</span>
+                      </div>
+                      <div className="text-3xl font-bold text-wine mb-1">{stats.totalPeople}</div>
+                      <div className="text-xs text-wine/50">大人 {stats.totalAdults} / 兒童 {stats.totalKids}</div>
                     </div>
-                    <div className="flex gap-4">
-                      <div className="bg-white px-6 py-3 rounded-xl border border-cream-dark shadow-sm text-center">
-                        <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總喜餅數</span>
-                        <span className="text-2xl font-bold text-wine">{stats.totalGifts}</span>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-cream-dark">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="p-3 bg-gold/5 rounded-xl text-gold">
+                          <Armchair size={24} />
+                        </div>
+                        <span className="text-[10px] font-bold text-gold/40 uppercase tracking-wider">座位安排進度</span>
                       </div>
-                      <div className="bg-gold/10 px-6 py-3 rounded-xl border border-gold/20 shadow-sm text-center">
-                        <span className="block text-[10px] text-gold font-bold uppercase mb-1">已領取</span>
-                        <span className="text-2xl font-bold text-gold">{stats.receivedGifts}</span>
+                      <div className="text-3xl font-bold text-gold mb-1">{stats.seatingProgress}%</div>
+                      <div className="w-full h-1.5 bg-gold/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-gold" style={{ width: `${stats.seatingProgress}%` }} />
                       </div>
-                      <div className="bg-wine/5 px-6 py-3 rounded-xl border border-wine/10 shadow-sm text-center">
-                        <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">剩餘</span>
-                        <span className="text-2xl font-bold text-wine/40">{stats.totalGifts - stats.receivedGifts}</span>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-cream-dark">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="p-3 bg-wine/5 rounded-xl text-wine">
+                          <Gift size={24} />
+                        </div>
+                        <span className="text-[10px] font-bold text-wine/30 uppercase tracking-wider">喜餅發放進度</span>
+                      </div>
+                      <div className="text-3xl font-bold text-wine mb-1">{stats.giftProgress}%</div>
+                      <div className="w-full h-1.5 bg-wine/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-wine" style={{ width: `${stats.giftProgress}%` }} />
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-cream-dark">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="p-3 bg-gold/5 rounded-xl text-gold">
+                          <Mail size={24} />
+                        </div>
+                        <span className="text-[10px] font-bold text-gold/40 uppercase tracking-wider">喜帖準備進度</span>
+                      </div>
+                      <div className="text-3xl font-bold text-gold mb-1">{stats.invitationProgress}%</div>
+                      <div className="w-full h-1.5 bg-gold/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-gold" style={{ width: `${stats.invitationProgress}%` }} />
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-2xl shadow-xl border border-cream-dark overflow-hidden">
-                    <div className="p-6 border-b border-cream-dark bg-cream flex flex-col gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Reminders & Alerts */}
+                    <div className="lg:col-span-2 space-y-6">
+                      <div className="bg-white rounded-2xl shadow-sm border border-cream-dark overflow-hidden">
+                        <div className="p-6 border-b border-cream-dark bg-cream/30 flex items-center justify-between">
+                          <h3 className="font-bold text-wine flex items-center gap-2">
+                            <AlertCircle size={18} className="text-gold" />
+                            待辦提醒
+                          </h3>
+                        </div>
+                        <div className="divide-y divide-cream-dark">
+                          {stats.totalUnassigned > 0 && (
+                            <div className="p-4 flex items-center justify-between hover:bg-cream/20 transition-colors">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-full bg-wine/5 flex items-center justify-center text-wine">
+                                  <UserPlus size={20} />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-bold text-wine">尚未安排座位</div>
+                                  <div className="text-xs text-wine/50">還有 {stats.totalUnassigned} 位賓客需要入座</div>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => setCurrentView('seating')}
+                                className="p-2 text-gold hover:bg-gold/5 rounded-lg transition-all"
+                              >
+                                <ArrowRight size={20} />
+                              </button>
+                            </div>
+                          )}
+                          {stats.needInvitation.filter(g => !g.isPrepared).length > 0 && (
+                            <div className="p-4 flex items-center justify-between hover:bg-cream/20 transition-colors">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-full bg-gold/5 flex items-center justify-center text-gold">
+                                  <Mail size={20} />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-bold text-wine">喜帖尚未準備</div>
+                                  <div className="text-xs text-wine/50">還有 {stats.needInvitation.filter(g => !g.isPrepared).length} 份喜帖待處理</div>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  setCurrentView('management');
+                                  setManagementSubTab('invitations');
+                                }}
+                                className="p-2 text-gold hover:bg-gold/5 rounded-lg transition-all"
+                              >
+                                <ArrowRight size={20} />
+                              </button>
+                            </div>
+                          )}
+                          {stats.totalGifts - stats.receivedGifts > 0 && (
+                            <div className="p-4 flex items-center justify-between hover:bg-cream/20 transition-colors">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-full bg-wine/5 flex items-center justify-center text-wine">
+                                  <Gift size={20} />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-bold text-wine">喜餅尚未領取</div>
+                                  <div className="text-xs text-wine/50">還有 {stats.totalGifts - stats.receivedGifts} 份喜餅待發放</div>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  setCurrentView('management');
+                                  setManagementSubTab('gifts');
+                                }}
+                                className="p-2 text-gold hover:bg-gold/5 rounded-lg transition-all"
+                              >
+                                <ArrowRight size={20} />
+                              </button>
+                            </div>
+                          )}
+                          {stats.totalUnassigned === 0 && stats.invitationProgress === 100 && stats.giftProgress === 100 && (
+                            <div className="p-12 text-center">
+                              <div className="w-16 h-16 rounded-full bg-emerald/10 text-emerald flex items-center justify-center mx-auto mb-4">
+                                <Check size={32} />
+                              </div>
+                              <div className="text-wine font-bold">太棒了！所有事項都已處理完畢</div>
+                              <div className="text-xs text-wine/40 mt-1">您可以放心地迎接婚禮的到來</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div className="space-y-6">
+                      <div className="bg-wine text-white rounded-2xl p-8 shadow-xl relative overflow-hidden">
+                        <div className="relative z-10">
+                          <h3 className="text-xl font-bold mb-4">快速操作</h3>
+                          <div className="space-y-3">
+                            <button 
+                              onClick={() => setIsSettingsOpen(true)}
+                              className="w-full flex items-center gap-3 p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all text-sm font-bold"
+                            >
+                              <Upload size={18} />
+                              匯入賓客名單
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setEditingGuest(null);
+                                setManualForm({ 
+                                  name: '', 
+                                  zipCode: '', 
+                                  address: '',
+                                  adults: 1,
+                                  kids: 0,
+                                  childChairs: 0,
+                                  vegetarian: 0,
+                                  relationship: '',
+                                  attending: true,
+                                  giftCount: 1,
+                                  giftReceived: false
+                                });
+                                setIsManualFormOpen(true);
+                              }}
+                              className="w-full flex items-center gap-3 p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all text-sm font-bold"
+                            >
+                              <UserPlus size={18} />
+                              手動新增賓客
+                            </button>
+                            <button 
+                              onClick={handleExport}
+                              className="w-full flex items-center gap-3 p-3 bg-gold hover:bg-gold-dark rounded-xl transition-all text-sm font-bold text-white shadow-lg"
+                            >
+                              <Download size={18} />
+                              匯出座位表 (CSV)
+                            </button>
+                            <button 
+                              onClick={handleExportInvitations}
+                              className="w-full flex items-center gap-3 p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all text-sm font-bold"
+                            >
+                              <FileSpreadsheet size={18} />
+                              匯出喜帖名單 (CSV)
+                            </button>
+                          </div>
+                        </div>
+                        <Wine className="absolute -bottom-10 -right-10 text-white/5 w-48 h-48 rotate-12" />
+                      </div>
+
+                      <div className="bg-white rounded-2xl p-6 border border-cream-dark shadow-sm">
+                        <h3 className="text-[10px] font-bold text-wine/30 uppercase tracking-widest mb-4">場地資訊</h3>
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-wine/50">總桌數</span>
+                            <span className="text-sm font-bold text-wine">{stats.tablesCount} 桌</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-wine/50">已使用桌數</span>
+                            <span className="text-sm font-bold text-wine">{stats.activeTables} 桌</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-wine/50">平均每桌人數</span>
+                            <span className="text-sm font-bold text-wine">
+                              {stats.activeTables > 0 ? (stats.totalSeated / stats.activeTables).toFixed(1) : 0} 人
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {currentView === 'management' && (
+                <motion.div 
+                  key="management"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="p-12 max-w-7xl mx-auto"
+                >
+                  <div className="mb-12 flex justify-between items-end">
+                    <div>
+                      <h2 className="text-4xl font-bold text-wine font-serif mb-2">進度管理中心</h2>
+                      <p className="text-wine/30 uppercase tracking-widest text-[10px] font-bold">Wedding Progress Management</p>
+                    </div>
+                    <div className="flex bg-cream-dark p-1 rounded-xl border border-cream-dark">
+                      <button 
+                        onClick={() => setManagementSubTab('invitations')}
+                        className={cn(
+                          "flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all",
+                          managementSubTab === 'invitations' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
+                        )}
+                      >
+                        <Mail size={18} />
+                        <span>喜帖寄送</span>
+                      </button>
+                      <button 
+                        onClick={() => setManagementSubTab('gifts')}
+                        className={cn(
+                          "flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all",
+                          managementSubTab === 'gifts' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
+                        )}
+                      >
+                        <Gift size={18} />
+                        <span>喜餅領取</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {managementSubTab === 'invitations' ? (
+                    <div className="space-y-8">
                       <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-4">
-                          <h3 className="font-bold text-wine">賓客領取清單</h3>
+                        <div className="flex gap-4">
+                          <div className="bg-white px-6 py-3 rounded-xl border border-cream-dark shadow-sm text-center">
+                            <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總份數</span>
+                            <span className="text-2xl font-bold text-wine">{stats.needInvitation.length}</span>
+                          </div>
+                          <div className="bg-gold/10 px-6 py-3 rounded-xl border border-gold/20 shadow-sm text-center">
+                            <span className="block text-[10px] text-gold font-bold uppercase mb-1">已準備</span>
+                            <span className="text-2xl font-bold text-gold">{stats.needInvitation.filter(g => g.isPrepared).length}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-wine/30" size={14} />
+                            <input 
+                              type="text"
+                              placeholder="搜尋姓名、地址或標籤..."
+                              value={invitationSearchQuery}
+                              onChange={(e) => setInvitationSearchQuery(e.target.value)}
+                              className="pl-9 pr-4 py-2 bg-white border border-cream-dark rounded-lg text-xs focus:outline-none focus:border-gold/50 w-64"
+                            />
+                          </div>
                           <button 
-                            onClick={() => {
-                              handleEditGuest({
-                                id: '',
-                                name: '',
-                                adults: 0,
-                                kids: 0,
-                                total: 0,
-                                attending: false,
-                                childChairs: 0,
-                                vegetarian: 0,
-                                source: 'manual',
-                                relationship: '喜餅紀錄',
-                                giftCount: 1,
-                                giftReceived: false
-                              } as GuestGroup);
-                            }}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-gold text-white text-[10px] font-bold rounded-md hover:bg-gold/90 transition-all"
+                            onClick={handleExportInvitations}
+                            className="flex items-center gap-2 px-4 py-2 bg-wine text-white rounded-lg text-xs font-bold hover:bg-wine/90 transition-all shadow-sm"
                           >
-                            <Plus size={14} />
-                            手動新增紀錄
+                            <Download size={14} />
+                            匯出名單
                           </button>
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-2xl shadow-sm border border-cream-dark overflow-hidden">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-cream border-b border-cream-dark">
+                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">狀態</th>
+                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px]">填表人姓名</th>
+                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px]">郵遞區號</th>
+                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px]">收件地址</th>
+                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px] text-right">操作</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredInvitationGuests.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="px-8 py-20 text-center text-wine/20 italic">
+                                  {invitationSearchQuery || invitationTagFilter ? '找不到符合條件的賓客。' : '目前沒有需要寄送喜帖的賓客資料'}
+                                </td>
+                              </tr>
+                            ) : (
+                              filteredInvitationGuests.map((guest, idx) => (
+                                <tr key={guest.id} className={cn(
+                                  "border-b border-cream-dark hover:bg-cream/50 transition-colors group",
+                                  idx === filteredInvitationGuests.length - 1 && "border-0",
+                                  guest.isPrepared && "bg-cream/30"
+                                )}>
+                                  <td className="px-8 py-6">
+                                    <button
+                                      onClick={() => handleTogglePrepared(guest.id)}
+                                      className={cn(
+                                        "w-6 h-6 rounded-sm border flex items-center justify-center transition-all",
+                                        guest.isPrepared 
+                                          ? "bg-gold border-gold text-white" 
+                                          : "bg-white border-cream-dark text-transparent hover:border-gold/50"
+                                      )}
+                                    >
+                                      <Check size={14} strokeWidth={3} />
+                                    </button>
+                                  </td>
+                                  <td className={cn(
+                                    "px-8 py-6 font-bold transition-all",
+                                    guest.isPrepared ? "text-wine/20 line-through" : "text-wine"
+                                  )}>
+                                    <div className="flex items-center gap-3">
+                                      {guest.name}
+                                      <span className="text-[9px] px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-tighter bg-cream-dark text-wine/30">
+                                        {guest.relationship}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className={cn(
+                                    "px-8 py-6 font-mono text-sm transition-all",
+                                    guest.isPrepared ? "text-wine/10" : "text-wine/50"
+                                  )}>
+                                    {guest.zipCode || '---'}
+                                  </td>
+                                  <td className={cn(
+                                    "px-8 py-6 flex items-center gap-2 transition-all",
+                                    guest.isPrepared ? "text-wine/10" : "text-wine/60"
+                                  )}>
+                                    <MapPin size={14} className={cn("transition-all", guest.isPrepared ? "text-wine/5" : "text-wine/20")} />
+                                    {guest.address}
+                                  </td>
+                                  <td className="px-8 py-6 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <button 
+                                        onClick={() => {
+                                          const text = `${guest.zipCode ? `[${guest.zipCode}] ` : ''}${guest.address}\n${guest.name} 收`;
+                                          navigator.clipboard.writeText(text);
+                                          alert('已複製寄送資訊！');
+                                        }}
+                                        className={cn(
+                                          "p-2 rounded-md transition-all",
+                                          guest.isPrepared ? "text-wine/10" : "text-wine hover:bg-wine/5"
+                                        )}
+                                        title="複製寄送資訊"
+                                      >
+                                        <Copy size={18} />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleEditGuest(guest)}
+                                        className="p-2 text-wine/30 hover:text-gold hover:bg-gold/5 rounded-md transition-all"
+                                      >
+                                        <Edit2 size={18} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-8">
+                      <div className="flex justify-between items-center">
+                        <div className="flex gap-4">
+                          <div className="bg-white px-6 py-3 rounded-xl border border-cream-dark shadow-sm text-center">
+                            <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總喜餅數</span>
+                            <span className="text-2xl font-bold text-wine">{stats.totalGifts}</span>
+                          </div>
+                          <div className="bg-gold/10 px-6 py-3 rounded-xl border border-gold/20 shadow-sm text-center">
+                            <span className="block text-[10px] text-gold font-bold uppercase mb-1">已領取</span>
+                            <span className="text-2xl font-bold text-gold">{stats.receivedGifts}</span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="relative">
@@ -1232,458 +1617,92 @@ export default function App() {
                               placeholder="搜尋姓名或標籤..."
                               value={giftSearchQuery}
                               onChange={(e) => setGiftSearchQuery(e.target.value)}
-                              className="pl-9 pr-4 py-2 bg-white border border-cream-dark rounded-lg text-xs focus:outline-none focus:border-gold/50 w-48"
+                              className="pl-9 pr-4 py-2 bg-white border border-cream-dark rounded-lg text-xs focus:outline-none focus:border-gold/50 w-64"
                             />
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => setGiftTagFilter(null)}
-                          className={cn(
-                            "px-3 py-1 rounded-full text-[10px] font-bold transition-all border",
-                            !giftTagFilter 
-                              ? "bg-wine text-white border-wine" 
-                              : "bg-white text-wine/40 border-cream-dark hover:border-wine/20"
-                          )}
-                        >
-                          全部
-                        </button>
-                        {uniqueTags.map(tag => (
-                          <button
-                            key={tag}
-                            onClick={() => setGiftTagFilter(tag === giftTagFilter ? null : tag)}
-                            className={cn(
-                              "px-3 py-1 rounded-full text-[10px] font-bold transition-all border",
-                              giftTagFilter === tag 
-                                ? "bg-gold text-white border-gold" 
-                                : "bg-white text-wine/40 border-cream-dark hover:border-gold/20"
-                            )}
-                          >
-                            {tag}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-cream/50 text-wine/40 text-[10px] font-bold uppercase tracking-widest border-b border-cream-dark">
-                          <th className="px-8 py-4 w-20">狀態</th>
-                          <th className="px-8 py-4">賓客姓名</th>
-                          <th className="px-8 py-4 w-32">數量</th>
-                          <th className="px-8 py-4">關係/標籤</th>
-                          <th className="px-8 py-4 text-right">操作</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredGiftGuests.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="px-8 py-20 text-center text-wine/20 italic">
-                              {giftSearchQuery || giftTagFilter ? '找不到符合條件的賓客。' : '目前沒有賓客資料，請先匯入名單或手動新增。'}
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredGiftGuests.map((guest) => (
-                            <tr 
-                              key={guest.id} 
-                              className={cn(
-                                "border-b border-cream-dark transition-colors",
-                                guest.giftReceived ? "bg-cream/20" : "hover:bg-cream/10"
-                              )}
-                            >
-                              <td className="px-8 py-6">
-                                <button 
-                                  onClick={() => handleToggleGift(guest.id)}
-                                  className={cn(
-                                    "w-6 h-6 rounded-sm border flex items-center justify-center transition-all",
-                                    guest.giftReceived 
-                                      ? "bg-gold border-gold text-white" 
-                                      : "bg-white border-cream-dark text-transparent hover:border-gold/50"
-                                  )}
-                                >
-                                  <Check size={14} strokeWidth={3} />
-                                </button>
-                              </td>
-                              <td className={cn(
-                                "px-8 py-6 font-bold transition-all",
-                                guest.giftReceived ? "text-wine/20 line-through" : "text-wine"
-                              )}>
-                                <div className="flex items-center gap-3">
-                                  {guest.name}
-                                  <span className={cn(
-                                    "text-[9px] px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-tighter",
-                                    guest.source === 'sheet' 
-                                      ? "bg-cream-dark text-wine/30" 
-                                      : "bg-gold/10 text-gold border border-gold/10"
-                                  )}>
-                                    {guest.source === 'sheet' ? '表單' : '手動'}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="px-8 py-6">
-                                <div className="flex items-center gap-2">
-                                  <button 
-                                    onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) - 1)}
-                                    className="w-6 h-6 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all"
-                                  >
-                                    -
-                                  </button>
-                                  <span className={cn(
-                                    "font-mono font-bold w-8 text-center",
-                                    guest.giftReceived ? "text-wine/20" : "text-wine"
-                                  )}>
-                                    {guest.giftCount || 1}
-                                  </span>
-                                  <button 
-                                    onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) + 1)}
-                                    className="w-6 h-6 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              </td>
-                              <td className={cn(
-                                "px-8 py-6 transition-all",
-                                guest.giftReceived ? "text-wine/10" : "text-wine/50"
-                              )}>
-                                {guest.relationship || '---'}
-                              </td>
-                              <td className="px-8 py-6 text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <button 
-                                    onClick={() => handleEditGuest(guest)}
-                                    className="p-2 text-wine/30 hover:text-gold hover:bg-gold/5 rounded-md transition-all"
-                                    title="編輯賓客"
-                                  >
-                                    <Edit2 size={18} />
-                                  </button>
-                                  {guest.source === 'manual' && (
-                                    <button 
-                                      onClick={() => handleDeleteManual(guest.id)}
-                                      className="p-2 text-wine/30 hover:text-gold hover:bg-gold/5 rounded-md transition-all"
-                                      title="刪除紀錄"
-                                    >
-                                      <Trash2 size={18} />
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
+                      <div className="bg-white rounded-2xl shadow-sm border border-cream-dark overflow-hidden">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-cream border-b border-cream-dark">
+                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">狀態</th>
+                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px]">賓客姓名</th>
+                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-32">數量</th>
+                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px]">關係/標籤</th>
+                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px] text-right">操作</th>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="mt-8 p-6 bg-wine/5 rounded-2xl border border-wine/10 flex items-start gap-4">
-                    <Info size={20} className="text-wine mt-0.5" />
-                    <div className="text-xs text-wine leading-relaxed">
-                      <strong>喜餅統計說明：</strong> 系統會自動同步所有賓客名單。您可以點擊左側核取方塊標記「已領取」，或點擊數量欄位的「+ / -」來調整該賓客應領取的喜餅份數。手動新增的紀錄不會影響座位表的出席人數統計。
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {currentView === 'overview' && (
-                <motion.div 
-                  key="overview"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
-                  className="p-12 max-w-6xl mx-auto"
-                >
-                  <div className="mb-12 text-center">
-                    <h2 className="text-4xl font-bold text-wine font-serif mb-2">婚禮統計總覽</h2>
-                    <p className="text-wine/30 uppercase tracking-widest text-[10px] font-bold">Wedding Statistics Overview</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {/* Main Stats Card */}
-                    <div className="bg-white rounded-2xl p-10 shadow-sm border border-cream-dark flex flex-col items-center text-center">
-                      <div className="w-20 h-20 rounded-full bg-cream-dark flex items-center justify-center text-gold mb-6">
-                        <Users size={40} />
-                      </div>
-                      <h3 className="text-wine/30 font-bold uppercase tracking-widest text-[10px] mb-2">總出席人數</h3>
-                      <div className="text-6xl font-bold text-wine mb-2">{stats.totalPeople}</div>
-                      <div className="text-wine/50 font-medium">
-                        大人 {stats.totalAdults} / 兒童 {stats.totalKids}
-                      </div>
-                    </div>
-
-                    <div className="bg-white rounded-2xl p-10 shadow-sm border border-cream-dark flex flex-col items-center text-center">
-                      <div className="w-20 h-20 rounded-full bg-cream-dark flex items-center justify-center text-wine/40 mb-6">
-                        <Armchair size={40} />
-                      </div>
-                      <h3 className="text-wine/30 font-bold uppercase tracking-widest text-[10px] mb-2">總兒童椅需求</h3>
-                      <div className="text-6xl font-bold text-wine/60 mb-2">{stats.totalChairs}</div>
-                      <div className="text-wine/50 font-medium">張</div>
-                    </div>
-
-                    <div className="bg-white rounded-2xl p-10 shadow-sm border border-cream-dark flex flex-col items-center text-center">
-                      <div className="w-20 h-20 rounded-full bg-cream-dark flex items-center justify-center text-wine/40 mb-6">
-                        <Leaf size={40} />
-                      </div>
-                      <h3 className="text-wine/30 font-bold uppercase tracking-widest text-[10px] mb-2">總素食人數</h3>
-                      <div className="text-6xl font-bold text-wine/60 mb-2">{stats.totalVeg}</div>
-                      <div className="text-wine/50 font-medium">位</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="bg-white rounded-2xl p-8 border border-cream-dark">
-                      <h4 className="text-wine font-bold mb-4 flex items-center gap-2">
-                        <Info size={18} className="text-gold" />
-                        填表統計
-                      </h4>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center bg-cream p-4 rounded-xl border border-cream-dark">
-                          <span className="text-wine/50 font-medium">總填表組數 (Respondents)</span>
-                          <span className="text-xl font-bold text-wine">{stats.totalRespondents} 組</span>
-                        </div>
-                        <div className="flex justify-between items-center bg-cream p-4 rounded-xl border border-cream-dark">
-                          <span className="text-wine/50 font-medium">喜帖寄送需求</span>
-                          <span className="text-xl font-bold text-wine">{stats.needInvitation.length} 份</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-wine rounded-2xl p-8 text-white shadow-xl">
-                      <h4 className="font-bold mb-4 opacity-80">座位分配進度</h4>
-                      <div className="space-y-6">
-                        <div>
-                          <div className="flex justify-between text-sm mb-2 font-bold">
-                            <span>已分配人數</span>
-                            <span>{state.tables.reduce((s, t) => s + t.guests.reduce((gs, g) => gs + g.total, 0), 0)} / {stats.totalPeople}</span>
-                          </div>
-                          <div className="h-3 bg-white/10 rounded-full overflow-hidden">
-                            <motion.div 
-                              initial={{ width: 0 }}
-                              animate={{ width: `${(state.tables.reduce((s, t) => s + t.guests.reduce((gs, g) => gs + g.total, 0), 0) / (stats.totalPeople || 1)) * 100}%` }}
-                              className="h-full bg-gold"
-                            />
-                          </div>
-                        </div>
-                        <p className="text-[10px] opacity-60 leading-relaxed">
-                          目前共有 {state.unassigned.reduce((s, g) => s + g.total, 0)} 位賓客尚未分配座位。請切換至「座位安排」視圖進行拖曳分配。
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {currentView === 'invitations' && (
-                <motion.div 
-                  key="invitations"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
-                  className="p-12 max-w-5xl mx-auto"
-                >
-                  <div className="mb-12 flex justify-between items-end">
-                    <div>
-                      <h2 className="text-4xl font-bold text-wine font-serif mb-2">喜帖寄送清單</h2>
-                      <p className="text-wine/30 uppercase tracking-widest text-[10px] font-bold">Wedding Invitation Mailing List</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-4">
-                      <div className="flex gap-3">
-                        <button 
-                          onClick={() => {
-                            setEditingGuest(null);
-                            setManualForm({ 
-                              name: '', 
-                              zipCode: '', 
-                              address: '',
-                              adults: 1,
-                              kids: 0,
-                              childChairs: 0,
-                              vegetarian: 0,
-                              relationship: '',
-                              attending: true,
-                              giftCount: 1,
-                              giftReceived: false
-                            });
-                            setIsManualFormOpen(true);
-                          }}
-                          className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold bg-gold text-white hover:bg-gold-dark transition-all shadow-sm"
-                        >
-                          <UserPlus size={18} />
-                          <span>手動加人</span>
-                        </button>
-                        <div className="bg-wine text-white px-6 py-3 rounded-xl font-bold shadow-sm flex items-center gap-3">
-                          <span>共 {stats.needInvitation.length} 份</span>
-                          <div className="h-4 w-px bg-white/20" />
-                          <div className="text-[10px] opacity-70 flex gap-3">
-                            <span>表單: {stats.sheetCount}</span>
-                            <span>手動: {stats.manualCount}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-wine/30" size={14} />
-                          <input 
-                            type="text"
-                            placeholder="搜尋姓名、地址或標籤..."
-                            value={invitationSearchQuery}
-                            onChange={(e) => setInvitationSearchQuery(e.target.value)}
-                            className="pl-9 pr-4 py-2 bg-white border border-cream-dark rounded-lg text-xs focus:outline-none focus:border-gold/50 w-64"
-                          />
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 max-w-md justify-end">
-                          <button
-                            onClick={() => setInvitationTagFilter(null)}
-                            className={cn(
-                              "px-2.5 py-1 rounded-md text-[10px] font-bold transition-all border",
-                              !invitationTagFilter 
-                                ? "bg-wine text-white border-wine" 
-                                : "bg-white text-wine/40 border-cream-dark hover:border-gold/20"
-                            )}
-                          >
-                            全部
-                          </button>
-                          {uniqueTags.filter(tag => stats.needInvitation.some(g => g.relationship === tag)).map(tag => (
-                            <button
-                              key={tag}
-                              onClick={() => setInvitationTagFilter(tag === invitationTagFilter ? null : tag)}
-                              className={cn(
-                                "px-2.5 py-1 rounded-md text-[10px] font-bold transition-all border",
-                                invitationTagFilter === tag 
-                                  ? "bg-gold text-white border-gold" 
-                                  : "bg-white text-wine/40 border-cream-dark hover:border-gold/20"
-                                )}
-                            >
-                              {tag}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-2xl shadow-sm border border-cream-dark overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-cream border-b border-cream-dark">
-                          <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">狀態</th>
-                          <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px]">填表人姓名</th>
-                          <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px]">郵遞區號</th>
-                          <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px]">收件地址</th>
-                          <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px] text-right">操作</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredInvitationGuests.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="px-8 py-20 text-center text-wine/20 italic">
-                              {invitationSearchQuery || invitationTagFilter ? '找不到符合條件的賓客。' : '目前沒有需要寄送喜帖的賓客資料 (收件地址欄位為空)'}
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredInvitationGuests.map((guest, idx) => (
-                            <tr key={guest.id} className={cn(
-                              "border-b border-cream-dark hover:bg-cream/50 transition-colors group",
-                              idx === stats.needInvitation.length - 1 && "border-0",
-                              guest.isPrepared && "bg-cream/30"
-                            )}>
-                              <td className="px-8 py-6">
-                                <button
-                                  onClick={() => handleTogglePrepared(guest.id)}
-                                  className={cn(
-                                    "w-6 h-6 rounded-sm border flex items-center justify-center transition-all",
-                                    guest.isPrepared 
-                                      ? "bg-gold border-gold text-white" 
-                                      : "bg-white border-cream-dark text-transparent hover:border-gold/50"
-                                  )}
-                                >
-                                  <Check size={14} strokeWidth={3} />
-                                </button>
-                              </td>
-                              <td className={cn(
-                                "px-8 py-6 font-bold transition-all",
-                                guest.isPrepared ? "text-wine/20 line-through" : "text-wine"
-                              )}>
-                                <div className="flex items-center gap-3">
-                                  {guest.name}
-                                  <span className={cn(
-                                    "text-[9px] px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-tighter",
-                                    guest.source === 'sheet' 
-                                      ? "bg-cream-dark text-wine/30" 
-                                      : "bg-gold/10 text-gold border border-gold/10"
+                          </thead>
+                          <tbody>
+                            {filteredGiftGuests.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="px-8 py-20 text-center text-wine/20 italic">
+                                  {giftSearchQuery || giftTagFilter ? '找不到符合條件的賓客。' : '目前沒有賓客資料'}
+                                </td>
+                              </tr>
+                            ) : (
+                              filteredGiftGuests.map((guest, idx) => (
+                                <tr key={guest.id} className={cn(
+                                  "border-b border-cream-dark hover:bg-cream/50 transition-colors group",
+                                  idx === filteredGiftGuests.length - 1 && "border-0",
+                                  guest.giftReceived && "bg-cream/30"
+                                )}>
+                                  <td className="px-8 py-6">
+                                    <button 
+                                      onClick={() => handleToggleGift(guest.id)}
+                                      className={cn(
+                                        "w-6 h-6 rounded-sm border flex items-center justify-center transition-all",
+                                        guest.giftReceived 
+                                          ? "bg-gold border-gold text-white" 
+                                          : "bg-white border-cream-dark text-transparent hover:border-gold/50"
+                                      )}
+                                    >
+                                      <Check size={14} strokeWidth={3} />
+                                    </button>
+                                  </td>
+                                  <td className={cn(
+                                    "px-8 py-6 font-bold transition-all",
+                                    guest.giftReceived ? "text-wine/20 line-through" : "text-wine"
                                   )}>
-                                    {guest.source === 'sheet' ? '表單' : '手動'}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className={cn(
-                                "px-8 py-6 font-mono text-sm transition-all",
-                                guest.isPrepared ? "text-wine/10" : "text-wine/50"
-                              )}>
-                                {guest.zipCode || '---'}
-                              </td>
-                              <td className={cn(
-                                "px-8 py-6 flex items-center gap-2 transition-all",
-                                guest.isPrepared ? "text-wine/10" : "text-wine/60"
-                              )}>
-                                <MapPin size={14} className={cn("transition-all", guest.isPrepared ? "text-wine/5" : "text-wine/20")} />
-                                {guest.address}
-                              </td>
-                              <td className="px-8 py-6 text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <button 
-                                    onClick={() => {
-                                      const text = `${guest.zipCode ? `[${guest.zipCode}] ` : ''}${guest.address}\n${guest.name} 收`;
-                                      navigator.clipboard.writeText(text);
-                                      alert('已複製寄送資訊！');
-                                    }}
-                                    className={cn(
-                                      "p-2 rounded-md transition-all",
-                                      guest.isPrepared ? "text-wine/10" : "text-wine hover:bg-wine/5"
-                                    )}
-                                    title="複製寄送資訊"
-                                  >
-                                    <Copy size={18} />
-                                  </button>
-                                  {guest.source === 'manual' && (
+                                    {guest.name}
+                                  </td>
+                                  <td className="px-8 py-6">
+                                    <div className="flex items-center gap-2">
+                                      <button 
+                                        onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) - 1)}
+                                        className="w-6 h-6 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="font-mono font-bold w-8 text-center">{guest.giftCount || 1}</span>
+                                      <button 
+                                        onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) + 1)}
+                                        className="w-6 h-6 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  </td>
+                                  <td className="px-8 py-6 text-wine/50 text-sm">
+                                    {guest.relationship}
+                                  </td>
+                                  <td className="px-8 py-6 text-right">
                                     <button 
-                                      onClick={() => {
-                                        handleEditGuest(guest);
-                                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                                      }}
+                                      onClick={() => handleEditGuest(guest)}
                                       className="p-2 text-wine/30 hover:text-gold hover:bg-gold/5 rounded-md transition-all"
-                                      title="編輯手動賓客"
                                     >
-                                      <Edit size={18} />
+                                      <Edit2 size={18} />
                                     </button>
-                                  )}
-                                  {guest.source === 'manual' && (
-                                    <button 
-                                      onClick={() => handleDeleteManual(guest.id)}
-                                      className="p-2 text-wine/30 hover:text-gold hover:bg-gold/5 rounded-md transition-all"
-                                      title="刪除手動賓客"
-                                    >
-                                      <Trash2 size={18} />
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="mt-8 p-6 bg-wine/5 rounded-2xl border border-wine/10 flex items-start gap-4">
-                    <Info size={20} className="text-wine mt-0.5" />
-                    <div className="text-xs text-wine leading-relaxed">
-                      <strong>篩選邏輯：</strong> 系統會自動從 Google Sheets 中尋找「收件地址」或「地址」欄位。只要該欄位有填寫內容，系統就會將該名填表人列入此清單中。您可以點擊右側的「複製資料」快速取得寄送資訊。
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
