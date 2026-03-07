@@ -9,10 +9,14 @@ import {
   useSensors,
   DragStartEvent,
   DragEndEvent,
+  DragOverEvent,
   defaultDropAnimationSideEffects
 } from '@dnd-kit/core';
 import { 
   sortableKeyboardCoordinates, 
+  SortableContext,
+  rectSortingStrategy,
+  arrayMove
 } from '@dnd-kit/sortable';
 import { 
   Plus, 
@@ -76,6 +80,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [relationshipFilter, setRelationshipFilter] = useState('all');
   const [activeGuest, setActiveGuest] = useState<GuestGroup | null>(null);
+  const [activeTableId, setActiveTableId] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<'seating' | 'overview' | 'invitations'>('seating');
   const [isManualFormOpen, setIsManualFormOpen] = useState(false);
   const [editingGuest, setEditingGuest] = useState<GuestGroup | null>(null);
@@ -409,18 +414,43 @@ export default function App() {
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
-    const guest = active.data.current?.guest as GuestGroup;
-    setActiveGuest(guest);
+    if (active.data.current?.guest) {
+      setActiveGuest(active.data.current.guest as GuestGroup);
+      setActiveTableId(null);
+    } else if (active.data.current?.table) {
+      setActiveTableId(active.id as string);
+      setActiveGuest(null);
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveGuest(null);
+    setActiveTableId(null);
 
     if (!over) return;
 
-    const guestId = active.id as string;
+    const activeId = active.id as string;
     const overId = over.id as string;
+
+    // Handle Table Reordering
+    if (active.data.current?.table && over.data.current?.table) {
+      if (activeId !== overId) {
+        setState(prev => {
+          const oldIndex = prev.tables.findIndex(t => t.id === activeId);
+          const newIndex = prev.tables.findIndex(t => t.id === overId);
+          return {
+            ...prev,
+            tables: arrayMove(prev.tables, oldIndex, newIndex)
+          };
+        });
+      }
+      return;
+    }
+
+    // Handle Guest Movement
+    const guestId = activeId;
+    const destinationId = overId;
 
     // Find where the guest is currently
     let sourceTableId: string | null = null;
@@ -460,11 +490,25 @@ export default function App() {
       }
 
       // Add to destination
-      if (overId === 'unassigned-sidebar') {
+      if (destinationId === 'unassigned-sidebar') {
         newState.unassigned = [...newState.unassigned, guestToMove!];
       } else {
+        // If dropped over a table or a guest in a table
+        let targetTableId = destinationId;
+        
+        // Check if dropped over a guest
+        if (over.data.current?.guest) {
+          // Find which table that guest belongs to
+          for (const table of prev.tables) {
+            if (table.guests.some(g => g.id === destinationId)) {
+              targetTableId = table.id;
+              break;
+            }
+          }
+        }
+
         newState.tables = newState.tables.map(t => 
-          t.id === overId 
+          t.id === targetTableId 
             ? { ...t, guests: [...t.guests, guestToMove!] }
             : t
         );
@@ -856,28 +900,30 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-                    {state.tables.map((table) => (
-                      <TableContainer 
-                        key={table.id} 
-                        table={table} 
-                        onDelete={handleDeleteTable}
-                        onUpdateName={handleUpdateTableName}
-                        onUpdateCapacity={handleUpdateTableCapacity}
-                        onEditGuest={handleEditGuest}
-                      />
-                    ))}
-                    
-                    {/* Add Table Button */}
-                    <button 
-                      onClick={handleAddTable}
-                      className="flex flex-col items-center justify-center min-h-[280px] rounded-lg border border-dashed border-cream-dark bg-white text-wine/20 hover:border-gold/50 hover:bg-cream hover:text-gold transition-all group"
-                    >
-                      <div className="w-12 h-12 rounded-sm border border-dashed border-cream-dark flex items-center justify-center mb-3 group-hover:border-gold/50 group-hover:scale-110 transition-all">
-                        <Plus size={24} />
-                      </div>
-                      <span className="font-bold">新增桌次</span>
-                    </button>
-                  </div>
+                      <SortableContext items={state.tables.map(t => t.id)} strategy={rectSortingStrategy}>
+                        {state.tables.map((table) => (
+                          <TableContainer 
+                            key={table.id} 
+                            table={table} 
+                            onDelete={handleDeleteTable}
+                            onUpdateName={handleUpdateTableName}
+                            onUpdateCapacity={handleUpdateTableCapacity}
+                            onEditGuest={handleEditGuest}
+                          />
+                        ))}
+                      </SortableContext>
+                      
+                      {/* Add Table Button */}
+                      <button 
+                        onClick={handleAddTable}
+                        className="flex flex-col items-center justify-center min-h-[280px] rounded-lg border border-dashed border-cream-dark bg-white text-wine/20 hover:border-gold/50 hover:bg-cream hover:text-gold transition-all group"
+                      >
+                        <div className="w-12 h-12 rounded-sm border border-dashed border-cream-dark flex items-center justify-center mb-3 group-hover:border-gold/50 group-hover:scale-110 transition-all">
+                          <Plus size={24} />
+                        </div>
+                        <span className="font-bold">新增桌次</span>
+                      </button>
+                    </div>
                 </div>
               </motion.div>
             )}
@@ -1157,6 +1203,10 @@ export default function App() {
         }}>
           {activeGuest ? (
             <GuestCard guest={activeGuest} isOverlay />
+          ) : activeTableId ? (
+            <div className="w-64 h-40 bg-white border-2 border-gold rounded-lg shadow-2xl opacity-80 flex items-center justify-center">
+              <span className="font-bold text-wine">正在移動桌次 {state.tables.find(t => t.id === activeTableId)?.number}</span>
+            </div>
           ) : null}
         </DragOverlay>
       </DndContext>

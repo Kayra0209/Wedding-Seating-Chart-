@@ -43,10 +43,10 @@ export const GuestCard: React.FC<GuestCardProps> = ({ guest, isOverlay, onEdit }
         "flex flex-col gap-1"
       )}
     >
-      <div className="flex justify-between items-start">
-        <div className="flex flex-col">
-          <div className="flex items-center gap-1">
-            <span className="font-medium text-wine">{guest.name}</span>
+      <div className="flex justify-between items-start gap-2">
+        <div className="flex flex-col min-w-0 flex-1">
+          <div className="flex items-center flex-wrap gap-x-1 gap-y-0.5">
+            <span className="font-medium text-wine whitespace-nowrap">{guest.name}</span>
             {onEdit && !isOverlay && (
               <button 
                 onClick={(e) => {
@@ -59,23 +59,25 @@ export const GuestCard: React.FC<GuestCardProps> = ({ guest, isOverlay, onEdit }
                 <Edit2 size={10} />
               </button>
             )}
-            {guest.relationship && (
-              <span className="text-[8px] px-1 py-0.5 bg-cream-dark text-wine/50 rounded font-bold uppercase tracking-tighter">
-                {guest.relationship}
-              </span>
-            )}
-            {guest.attending && (
-              <span className="text-[10px] text-wine/40 font-normal">
-                (+{guest.adults}大{guest.kids > 0 ? `${guest.kids}小` : ''})
-              </span>
-            )}
+            <div className="flex items-center gap-1">
+              {guest.relationship && (
+                <span className="text-[8px] px-1 py-0.5 bg-cream-dark text-wine/50 rounded font-bold uppercase tracking-tighter whitespace-nowrap">
+                  {guest.relationship}
+                </span>
+              )}
+              {guest.attending && (
+                <span className="text-[10px] text-wine/40 font-normal whitespace-nowrap">
+                  (+{guest.adults}大{guest.kids > 0 ? `${guest.kids}小` : ''})
+                </span>
+              )}
+            </div>
           </div>
           {!guest.attending && (
             <span className="text-[9px] text-gold font-bold uppercase tracking-tighter">不克出席</span>
           )}
         </div>
         {guest.attending && (
-          <div className="flex items-center gap-1 px-2 py-0.5 rounded-sm bg-wine/5 text-wine text-xs font-bold border border-wine/10">
+          <div className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-sm bg-wine/5 text-wine text-xs font-bold border border-wine/10">
             <Users size={12} className="text-gold" />
             <span>{guest.total}</span>
           </div>

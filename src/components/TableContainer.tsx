@@ -1,10 +1,12 @@
 import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Table, GuestGroup } from '../types';
 import { GuestCard } from './GuestCard';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { AlertCircle, UserCheck, Trash2, Armchair, Leaf, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, UserCheck, Trash2, Armchair, Leaf, CheckCircle2, GripVertical } from 'lucide-react';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -19,12 +21,38 @@ interface TableContainerProps {
 }
 
 export const TableContainer: React.FC<TableContainerProps> = ({ table, onDelete, onUpdateName, onUpdateCapacity, onEditGuest }) => {
-  const { setNodeRef, isOver } = useDroppable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setSortableRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: table.id,
     data: {
       table,
     },
   });
+
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: table.id,
+    data: {
+      table,
+    },
+  });
+
+  // Combine refs
+  const setRefs = (node: HTMLElement | null) => {
+    setSortableRef(node);
+    setDroppableRef(node);
+  };
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
 
   const currentTotal = table.guests.reduce((sum, g) => sum + g.total, 0);
   const totalChairs = table.guests.reduce((sum, g) => sum + g.childChairs, 0);
@@ -34,24 +62,36 @@ export const TableContainer: React.FC<TableContainerProps> = ({ table, onDelete,
 
   return (
     <div
-      ref={setNodeRef}
+      ref={setRefs}
+      style={style}
       className={cn(
         "flex flex-col h-full min-h-[280px] rounded-lg border transition-all duration-300 overflow-hidden relative group/table",
         isOver ? "border-gold bg-gold/5 scale-[1.02] shadow-md" : "border-cream-dark bg-white shadow-sm",
         isOverCapacity && "animate-pulse-red border-red-500",
-        isFull && !isOverCapacity && "border-wine bg-wine/[0.02]"
+        isFull && !isOverCapacity && "border-wine bg-wine/[0.02]",
+        isDragging && "z-50 shadow-2xl ring-2 ring-gold/50"
       )}
     >
-      {/* Delete Button */}
-      {onDelete && (
-        <button 
-          onClick={() => onDelete(table.id)}
-          className="absolute top-2 right-2 p-1.5 rounded-md bg-gold text-white opacity-0 group-hover/table:opacity-100 transition-opacity z-10 hover:bg-gold-dark"
-          title="刪除此桌"
+      {/* Drag Handle & Delete Button */}
+      <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/table:opacity-100 transition-opacity z-10">
+        <div 
+          {...attributes} 
+          {...listeners}
+          className="p-1.5 rounded-md bg-wine/10 text-wine hover:bg-wine/20 cursor-grab active:cursor-grabbing"
+          title="拖曳調整桌次順序"
         >
-          <Trash2 size={14} />
-        </button>
-      )}
+          <GripVertical size={14} />
+        </div>
+        {onDelete && (
+          <button 
+            onClick={() => onDelete(table.id)}
+            className="p-1.5 rounded-md bg-gold text-white hover:bg-gold-dark"
+            title="刪除此桌"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
+      </div>
       {/* Table Header */}
       <div className={cn(
         "px-4 py-3 flex flex-col gap-2 border-b",
