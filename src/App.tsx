@@ -355,7 +355,7 @@ export default function App() {
   };
 
   const handleExport = () => {
-    const headers = ['桌號', '桌名', '賓客姓名', '大人', '兒童', '總人數', '兒童椅', '素食', '關係', '來源'];
+    const headers = ['桌號', '桌名', '賓客姓名', '大人', '兒童', '總人數', '兒童椅', '素食', '關係/標籤', '備註', '來源'];
     const rows: string[][] = [];
 
     state.tables.forEach(t => {
@@ -370,6 +370,7 @@ export default function App() {
           g.childChairs.toString(),
           g.vegetarian.toString(),
           g.relationship || '',
+          g.note || '',
           g.source === 'sheet' ? '表單' : '手動'
         ]);
       });
@@ -379,7 +380,7 @@ export default function App() {
 
     // Add unassigned guests
     if (state.unassigned.length > 0) {
-      rows.push(['---', '未分配', '', '', '', '', '', '', '', '']);
+      rows.push(['---', '未分配', '', '', '', '', '', '', '', '', '']);
       state.unassigned.forEach(g => {
         rows.push([
           '未分配',
@@ -391,6 +392,7 @@ export default function App() {
           g.childChairs.toString(),
           g.vegetarian.toString(),
           g.relationship || '',
+          g.note || '',
           g.source === 'sheet' ? '表單' : '手動'
         ]);
       });
@@ -470,12 +472,17 @@ export default function App() {
   };
 
   const handleCopyToClipboard = () => {
-    const headers = ['桌號', '桌名', '姓名', '關係/標籤', '備註'];
-    const rows = state.tables.flatMap((table, index) => {
+    const headers = ['桌號', '桌名', '姓名', '大人', '兒童', '總人數', '兒童椅', '素食', '關係/標籤', '備註'];
+    const rows = state.tables.flatMap((table) => {
       return table.guests.map(guest => [
-        (index + 1).toString(),
-        table.name,
+        table.number.toString(),
+        table.name || '',
         guest.name,
+        guest.adults.toString(),
+        guest.kids.toString(),
+        guest.total.toString(),
+        guest.childChairs.toString(),
+        guest.vegetarian.toString(),
         guest.relationship || '',
         guest.note || ''
       ].join('\t'));
