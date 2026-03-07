@@ -787,13 +787,6 @@ export default function App() {
               >
                 <SettingsIcon size={20} />
               </button>
-              <button 
-                onClick={handleExport}
-                className="flex items-center gap-2 px-5 py-2.5 bg-gold hover:bg-gold-dark text-white font-bold rounded-xl shadow-sm transition-all active:scale-95"
-              >
-                <Download size={18} />
-                <span>匯出名單</span>
-              </button>
             </div>
           </header>
 
