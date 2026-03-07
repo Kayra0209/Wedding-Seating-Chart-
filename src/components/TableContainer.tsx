@@ -126,19 +126,19 @@ export const TableContainer: React.FC<TableContainerProps> = ({ table, onDelete,
               </div>
             )}
             <div className={cn(
-              "flex items-center gap-2 px-2.5 py-1 rounded-md text-xs font-bold transition-colors",
-              isOverCapacity ? "bg-red-500 text-white" : 
-              isFull ? "bg-wine text-white" : 
-              "bg-cream-dark text-wine/40"
+              "flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold transition-colors border",
+              isOverCapacity ? "bg-red-500 text-white border-red-600" : 
+              isFull ? "bg-wine/5 text-wine border-wine/10" : 
+              "bg-cream-dark text-wine/40 border-transparent"
             )}>
               {isOverCapacity ? (
-                <AlertCircle size={14} className="animate-pulse" />
+                <AlertCircle size={12} className="animate-pulse" />
               ) : isFull ? (
-                <CheckCircle2 size={14} />
+                <CheckCircle2 size={12} />
               ) : (
-                <UserCheck size={14} />
+                <UserCheck size={12} />
               )}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5">
                 <span>{currentTotal}</span>
                 <span className="opacity-30">/</span>
                 <input 
@@ -147,7 +147,7 @@ export const TableContainer: React.FC<TableContainerProps> = ({ table, onDelete,
                   max="20"
                   value={table.capacity}
                   onChange={(e) => onUpdateCapacity?.(table.id, parseInt(e.target.value) || 1)}
-                  className="w-6 bg-transparent border-none p-0 text-center focus:outline-none focus:ring-0 font-bold"
+                  className="w-7 bg-transparent border-none p-0 text-center focus:outline-none focus:ring-0 font-bold"
                   title="點擊修改桌位容量"
                 />
               </div>

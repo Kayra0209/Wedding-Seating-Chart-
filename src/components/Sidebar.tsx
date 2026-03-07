@@ -66,17 +66,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ guests, onSearch, onRelationsh
             >
               <UserPlus size={16} />
             </button>
-            {onClearAll && guests.length > 0 && (
-              <button 
-                onClick={onClearAll}
-                className="p-1.5 text-wine/20 hover:text-gold hover:bg-gold/5 rounded-md transition-all"
-                title="清空所有賓客"
-              >
-                <Trash2 size={16} />
-              </button>
-            )}
             <span className="px-3 py-1 bg-gold text-white text-[10px] font-bold rounded-sm">
-              {attendingGuests.length} 人出席
+              共 {attendingGuests.reduce((sum, g) => sum + g.total, 0)} 人出席
             </span>
           </div>
         </div>
@@ -139,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ guests, onSearch, onRelationsh
             )}
           >
             <UserCheck size={14} />
-            出席 ({attendingGuests.length})
+            出席未排座 ({attendingGuests.length})
           </button>
           <button
             onClick={() => setActiveTab('not-attending')}
