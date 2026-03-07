@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #FDFDFB;
+  --color-cream-dark: #F2F2ED;
+  --color-butter: #FDFDFB;
+  --color-butter-dark: #F2F2ED;
+  --color-gold: #BC002D; /* Muji Red */
+  --color-gold-light: #FDFDFB;
+  --color-gold-dark: #8B0000;
+  --color-wine: #333333; /* Charcoal Text */
+  
+  --font-serif: "Noto Serif TC", serif;
+}
+
+@layer base {
+  body {
+    @apply bg-cream text-wine font-sans;
+  }
+}
+
+.chinese-luxury-gradient {
+  background: #FFFFFF;
+  border-bottom: 2px solid #BC002D;
+}
+
+.gold-border {
+  border: 1px solid #EBEBE0;
+}
+
+@keyframes pulse-red {
+  0%, 100% { border-color: #ef4444; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { border-color: #f87171; box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+.animate-pulse-red {
+  animation: pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
