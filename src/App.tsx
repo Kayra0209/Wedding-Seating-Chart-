@@ -79,6 +79,7 @@ export default function App() {
 
   const [csvUrl, setCsvUrl] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -468,6 +469,29 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  const handleCopyToClipboard = () => {
+    const headers = ['桌號', '桌名', '姓名', '關係/標籤', '備註'];
+    const rows = state.tables.flatMap((table, index) => {
+      return table.guests.map(guest => [
+        (index + 1).toString(),
+        table.name,
+        guest.name,
+        guest.relationship || '',
+        guest.note || ''
+      ].join('\t'));
+    });
+
+    const content = [headers.join('\t'), ...rows].join('\n');
+    
+    navigator.clipboard.writeText(content).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+      alert('複製失敗，請手動匯出 CSV。');
+    });
+  };
+
   const handleUpdateTableName = (id: string, name: string) => {
     setState(prev => ({
       ...prev,
@@ -840,6 +864,18 @@ export default function App() {
                         >
                           <FileSpreadsheet size={20} />
                           匯出座位安排 (CSV)
+                        </button>
+
+                        <button
+                          onClick={handleCopyToClipboard}
+                          className={`flex items-center justify-center gap-2 py-4 rounded-xl font-bold transition-all border ${
+                            isCopied 
+                              ? 'bg-emerald/10 border-emerald text-emerald' 
+                              : 'bg-cream hover:bg-cream-dark text-wine border-cream-dark'
+                          }`}
+                        >
+                          {isCopied ? <Check size={20} /> : <Copy size={20} />}
+                          {isCopied ? '已複製到剪貼簿' : '複製座位表 (可直接貼上 Excel)'}
                         </button>
 
                         <button
