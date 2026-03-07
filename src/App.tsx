@@ -629,6 +629,7 @@ export default function App() {
         )}>
           <Sidebar 
             guests={filteredUnassigned} 
+            totalPeople={stats.totalPeople}
             onSearch={setSearchTerm}
             onRelationshipFilter={setRelationshipFilter}
             onClearAll={handleReset}

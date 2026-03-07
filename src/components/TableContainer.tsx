@@ -67,11 +67,17 @@ export const TableContainer: React.FC<TableContainerProps> = ({ table, onDelete,
       className={cn(
         "flex flex-col h-full min-h-[280px] rounded-lg border transition-all duration-300 overflow-hidden relative group/table",
         isOver ? "border-gold bg-gold/5 scale-[1.02] shadow-md" : "border-cream-dark bg-white shadow-sm",
-        isOverCapacity && "animate-pulse-red border-red-500",
-        isFull && !isOverCapacity && "border-wine bg-wine/[0.02]",
+        isOverCapacity && "animate-pulse-red border-gold",
+        isFull && !isOverCapacity && "border-wine bg-wine/[0.03] shadow-inner",
         isDragging && "z-50 shadow-2xl ring-2 ring-gold/50"
       )}
     >
+      {/* Full Badge */}
+      {isFull && !isOverCapacity && (
+        <div className="absolute -right-8 bottom-4 -rotate-45 bg-dusty-pink text-white text-[8px] font-black py-1 w-32 text-center shadow-sm z-20 pointer-events-none uppercase tracking-widest">
+          Full
+        </div>
+      )}
       {/* Drag Handle & Delete Button */}
       <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/table:opacity-100 transition-opacity z-10">
         <div 
@@ -94,8 +100,10 @@ export const TableContainer: React.FC<TableContainerProps> = ({ table, onDelete,
       </div>
       {/* Table Header */}
       <div className={cn(
-        "px-4 py-3 flex flex-col gap-2 border-b",
-        isOverCapacity ? "bg-gold/5 border-gold/20" : "bg-cream border-cream-dark"
+        "px-4 py-3 flex flex-col gap-2 border-b transition-colors",
+        isOverCapacity ? "bg-gold/5 border-gold/20" : 
+        isFull ? "bg-dusty-pink/10 border-dusty-pink/20" : 
+        "bg-cream border-cream-dark"
       )}>
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -127,7 +135,7 @@ export const TableContainer: React.FC<TableContainerProps> = ({ table, onDelete,
             )}
             <div className={cn(
               "flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold transition-colors border",
-              isOverCapacity ? "bg-red-500 text-white border-red-600" : 
+              isOverCapacity ? "bg-gold text-white border-gold-dark" : 
               isFull ? "bg-wine/5 text-wine border-wine/10" : 
               "bg-cream-dark text-wine/40 border-transparent"
             )}>
@@ -184,7 +192,7 @@ export const TableContainer: React.FC<TableContainerProps> = ({ table, onDelete,
       
       {/* Warning Footer */}
       {isOverCapacity && (
-        <div className="px-3 py-1.5 bg-red-500 text-white text-[10px] font-bold text-center uppercase tracking-widest">
+        <div className="px-3 py-1.5 bg-gold text-white text-[10px] font-bold text-center uppercase tracking-widest">
           警告：已超過桌次容量
         </div>
       )}

@@ -12,13 +12,14 @@ function cn(...inputs: ClassValue[]) {
 
 interface SidebarProps {
   guests: GuestGroup[];
+  totalPeople: number;
   onSearch: (term: string) => void;
   onRelationshipFilter: (relationship: string) => void;
   onClearAll?: () => void;
   onEditGuest?: (guest: GuestGroup) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ guests, onSearch, onRelationshipFilter, onClearAll, onEditGuest }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ guests, totalPeople, onSearch, onRelationshipFilter, onClearAll, onEditGuest }) => {
   const [activeTab, setActiveTab] = useState<'attending' | 'not-attending'>('attending');
   const [selectedRelationship, setSelectedRelationship] = useState<string>('all');
   const { setNodeRef, isOver } = useDroppable({
@@ -67,7 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ guests, onSearch, onRelationsh
               <UserPlus size={16} />
             </button>
             <span className="px-3 py-1 bg-gold text-white text-[10px] font-bold rounded-sm">
-              共 {attendingGuests.reduce((sum, g) => sum + g.total, 0)} 人出席
+              共 {totalPeople} 人出席
             </span>
           </div>
         </div>
