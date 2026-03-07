@@ -262,9 +262,13 @@ export default function App() {
         
         setCsvUrl('');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Import failed:', error);
-      alert('匯入失敗，請檢查網址是否正確且已發布為 CSV 格式。');
+      if (error.message === 'URL_IS_HTML') {
+        alert('讀取失敗！這似乎是一個網頁而不是 CSV 檔案。\n\n請確保：\n1. 您的 Google Sheet 已設定為「任何人都可以查看」\n2. 您使用的是「檔案 > 共用 > 發布到網路」所產生的 CSV 網址，而不是一般的試算表網址。');
+      } else {
+        alert('匯入失敗，請檢查網址是否正確且已發布為 CSV 格式。');
+      }
     } finally {
       setIsImporting(false);
     }
