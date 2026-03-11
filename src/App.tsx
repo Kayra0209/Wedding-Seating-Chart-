@@ -87,6 +87,7 @@ export default function App() {
   const [isCopied, setIsCopied] = useState(false);
   const [giftSearchQuery, setGiftSearchQuery] = useState('');
   const [giftTagFilter, setGiftTagFilter] = useState<string | null>(null);
+  const [giftAttendanceFilter, setGiftAttendanceFilter] = useState<'attending' | 'not-attending'>('attending');
   const [invitationSearchQuery, setInvitationSearchQuery] = useState('');
   const [invitationTagFilter, setInvitationTagFilter] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -961,7 +962,7 @@ export default function App() {
           {/* Settings Modal */}
           <AnimatePresence>
             {isSettingsOpen && (
-              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-8">
                 <motion.div 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -973,7 +974,7 @@ export default function App() {
                   initial={{ opacity: 0, scale: 0.95, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                  className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+                  className="relative w-full h-full md:h-[90vh] md:max-w-5xl bg-white rounded-none md:rounded-2xl shadow-2xl overflow-hidden flex flex-col"
                 >
                   <div className="p-6 border-b border-cream-dark bg-cream flex justify-between items-center">
                     <h2 className="text-xl font-bold text-wine flex items-center gap-2">
@@ -987,150 +988,189 @@ export default function App() {
                       <Plus className="rotate-45 text-wine/40" size={24} />
                     </button>
                   </div>
-                  <div className="p-8 space-y-6">
-                    {/* Import Section */}
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-wine font-bold">
-                        <LinkIcon size={18} className="text-gold" />
-                        <h3 className="text-sm">匯入 Google Sheets 賓客名單</h3>
-                        <div className="group relative ml-1">
-                          <Info size={14} className="text-wine/20 cursor-help" />
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-wine text-white text-[10px] rounded-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl leading-relaxed">
-                            請至 Google Sheets 點選「檔案」{'>'}「共用」{'>'}「發布到網路」，選擇「整份文件」與「逗號分隔值 (.csv)」，再將產生的網址貼至下方。
+                  <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                      {/* Left Column: Import & Sync */}
+                      <div className="space-y-8">
+                        {/* Import Section */}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 text-wine font-bold">
+                            <LinkIcon size={18} className="text-gold" />
+                            <h3 className="text-sm">匯入 Google Sheets 賓客名單</h3>
+                            <div className="group relative ml-1">
+                              <Info size={14} className="text-wine/20 cursor-help" />
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-wine text-white text-[10px] rounded-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl leading-relaxed">
+                                請至 Google Sheets 點選「檔案」{'>'}「共用」{'>'}「發布到網路」，選擇「整份文件」與「逗號分隔值 (.csv)」，再將產生的網址貼至下方。
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              value={csvUrl}
+                              onChange={(e) => setCsvUrl(e.target.value)}
+                              placeholder="貼上 Google Sheets CSV 網址..."
+                              className="flex-1 px-4 py-2 bg-cream border border-cream-dark rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold transition-all"
+                            />
+                            <button 
+                              onClick={handleImport}
+                              disabled={isImporting || !csvUrl}
+                              className="px-4 py-2 bg-wine text-white font-bold rounded-lg shadow-sm hover:bg-wine/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs"
+                            >
+                              {isImporting ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                              <span>匯入</span>
+                            </button>
+                          </div>
+                          <div className="flex justify-between items-center mt-1">
+                            <p className="text-[10px] text-wine/40">
+                              * 支援 Google Sheets 發布的 CSV 網址
+                            </p>
+                            <button 
+                              onClick={handleDownloadTemplate}
+                              className="text-[10px] text-gold hover:underline font-bold"
+                            >
+                              下載 CSV 範例範本
+                            </button>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <input 
-                          type="text" 
-                          value={csvUrl}
-                          onChange={(e) => setCsvUrl(e.target.value)}
-                          placeholder="貼上 Google Sheets CSV 網址..."
-                          className="flex-1 px-4 py-2 bg-cream border border-cream-dark rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold transition-all"
-                        />
-                        <button 
-                          onClick={handleImport}
-                          disabled={isImporting || !csvUrl}
-                          className="px-4 py-2 bg-wine text-white font-bold rounded-lg shadow-sm hover:bg-wine/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs"
-                        >
-                          {isImporting ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
-                          <span>匯入</span>
-                        </button>
-                      </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <p className="text-[10px] text-wine/40">
-                          * 支援 Google Sheets 發布的 CSV 網址
-                        </p>
-                        <button 
-                          onClick={handleDownloadTemplate}
-                          className="text-[10px] text-gold hover:underline font-bold"
-                        >
-                          下載 CSV 範例範本
-                        </button>
-                      </div>
-                      <div className="h-px bg-cream-dark mt-2" />
-                    </div>
 
-                    <div className="space-y-3">
-                      <h3 className="text-sm font-bold text-wine/80 uppercase tracking-widest">資料同步與備份</h3>
-                      <p className="text-[10px] text-wine/40 leading-relaxed bg-wine/5 p-3 rounded-lg">
-                        💡 提示：若要在不同裝置同步進度，請先在原裝置點擊「備份進度」下載檔案，再到新裝置點擊「還原進度」上傳該檔案即可。
-                      </p>
-                      <div className="grid grid-cols-1 gap-3">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="h-px bg-cream-dark" />
+
+                        <div className="space-y-4">
+                          <h3 className="text-sm font-bold text-wine/80 uppercase tracking-widest flex items-center gap-2">
+                            <FileJson size={18} className="text-gold" />
+                            資料同步與備份
+                          </h3>
+                          <p className="text-[10px] text-wine/40 leading-relaxed bg-wine/5 p-3 rounded-lg">
+                            💡 提示：若要在不同裝置同步進度，請先在原裝置點擊「備份進度」下載檔案，再到新裝置點擊「還原進度」上傳該檔案即可。
+                          </p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              onClick={() => {
+                                handleBackupJSON();
+                                setIsSettingsOpen(false);
+                              }}
+                              className="flex flex-col items-center justify-center gap-2 py-4 bg-gold/5 hover:bg-gold/10 text-gold rounded-xl font-bold transition-all border border-gold/20"
+                            >
+                              <FileJson size={24} />
+                              <span className="text-xs">備份進度 (JSON)</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                fileInputRef.current?.click();
+                              }}
+                              className="flex flex-col items-center justify-center gap-2 py-4 bg-cream hover:bg-cream-dark text-wine rounded-xl font-bold transition-all border border-cream-dark"
+                            >
+                              <Upload size={24} />
+                              <span className="text-xs">還原進度 (JSON)</span>
+                            </button>
+                            <input 
+                              type="file"
+                              ref={fileInputRef}
+                              onChange={handleRestoreJSON}
+                              accept=".json"
+                              className="hidden"
+                            />
+                          </div>
+
                           <button
                             onClick={() => {
-                              handleBackupJSON();
+                              handleExport();
                               setIsSettingsOpen(false);
                             }}
-                            className="flex flex-col items-center justify-center gap-2 py-4 bg-gold/5 hover:bg-gold/10 text-gold rounded-xl font-bold transition-all border border-gold/20"
+                            className="w-full flex items-center justify-center gap-2 py-4 bg-cream hover:bg-cream-dark text-wine rounded-xl font-bold transition-all border border-cream-dark"
                           >
-                            <FileJson size={24} />
-                            <span className="text-xs">備份進度 (JSON)</span>
+                            <FileSpreadsheet size={20} />
+                            匯出座位安排 (CSV)
                           </button>
+
+                          <button
+                            onClick={handleCopyToClipboard}
+                            className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold transition-all border ${
+                              isCopied 
+                                ? 'bg-emerald/10 border-emerald text-emerald' 
+                                : 'bg-cream hover:bg-cream-dark text-wine border-cream-dark'
+                            }`}
+                          >
+                            {isCopied ? <Check size={20} /> : <Copy size={20} />}
+                            {isCopied ? '已複製到剪貼簿' : '複製座位表 (可直接貼上 Excel)'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Right Column: System Info & Danger Zone */}
+                      <div className="space-y-8">
+                        <div className="p-6 bg-cream rounded-xl border border-cream-dark space-y-6">
+                          <div>
+                            <h3 className="text-[10px] font-bold text-wine/30 uppercase tracking-widest mb-3">統計資訊</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="bg-white p-4 rounded-lg border border-cream-dark shadow-sm">
+                                <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總填表人數</span>
+                                <span className="text-2xl font-bold text-wine">{stats.totalRespondents}</span>
+                              </div>
+                              <div className="bg-white p-4 rounded-lg border border-cream-dark shadow-sm">
+                                <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總桌數</span>
+                                <span className="text-2xl font-bold text-wine/60">{state.tables.length}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="h-px bg-cream-dark" />
+
+                          <div>
+                            <h3 className="text-[10px] font-bold text-wine/30 uppercase tracking-widest mb-3">系統資訊</h3>
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-[10px]">
+                                <span className="text-wine/40">版本</span>
+                                <span className="text-wine/60 font-mono">v1.3.1</span>
+                              </div>
+                              <div className="flex justify-between text-[10px]">
+                                <span className="text-wine/40">最後更新</span>
+                                <span className="text-wine/60 font-mono">2024-03-11</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <h3 className="text-sm font-bold text-red-500 uppercase tracking-widest flex items-center gap-2">
+                            <Trash2 size={18} />
+                            危險區域
+                          </h3>
+                          <div className="p-6 border border-red-200 bg-red-50 rounded-xl space-y-4">
+                            <p className="text-xs text-red-600 leading-relaxed">
+                              重設動作將會清除所有賓客資料、座位安排與系統設定。此動作無法復原，請務必先備份資料。
+                            </p>
+                            <button
+                              onClick={() => {
+                                handleReset();
+                                setIsSettingsOpen(false);
+                              }}
+                              className="w-full flex items-center justify-center gap-2 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-all shadow-sm"
+                            >
+                              <Trash2 size={18} />
+                              立即重設所有資料
+                            </button>
+                          </div>
+
                           <button
                             onClick={() => {
-                              fileInputRef.current?.click();
+                              if (window.confirm('⚠️ 這是強制重設，將會清除所有快取並重新整理頁面。確定嗎？')) {
+                                localStorage.clear();
+                                window.location.reload();
+                              }
                             }}
-                            className="flex flex-col items-center justify-center gap-2 py-4 bg-cream hover:bg-cream-dark text-wine rounded-xl font-bold transition-all border border-cream-dark"
+                            className="w-full flex items-center justify-center gap-2 py-2 text-[10px] text-wine/30 hover:text-gold transition-all"
                           >
-                            <Upload size={24} />
-                            <span className="text-xs">還原進度 (JSON)</span>
+                            <RefreshCw size={12} />
+                            遇到問題？嘗試強制重新整理
                           </button>
-                          <input 
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleRestoreJSON}
-                            accept=".json"
-                            className="hidden"
-                          />
-                        </div>
-
-                        <button
-                          onClick={() => {
-                            handleExport();
-                            setIsSettingsOpen(false);
-                          }}
-                          className="flex items-center justify-center gap-2 py-4 bg-cream hover:bg-cream-dark text-wine rounded-xl font-bold transition-all border border-cream-dark"
-                        >
-                          <FileSpreadsheet size={20} />
-                          匯出座位安排 (CSV)
-                        </button>
-
-                        <button
-                          onClick={handleCopyToClipboard}
-                          className={`flex items-center justify-center gap-2 py-4 rounded-xl font-bold transition-all border ${
-                            isCopied 
-                              ? 'bg-emerald/10 border-emerald text-emerald' 
-                              : 'bg-cream hover:bg-cream-dark text-wine border-cream-dark'
-                          }`}
-                        >
-                          {isCopied ? <Check size={20} /> : <Copy size={20} />}
-                          {isCopied ? '已複製到剪貼簿' : '複製座位表 (可直接貼上 Excel)'}
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            handleReset();
-                            setIsSettingsOpen(false);
-                          }}
-                          className="flex items-center justify-center gap-2 py-3 text-wine/40 hover:text-gold transition-all text-xs font-medium"
-                        >
-                          <Trash2 size={14} />
-                          清空所有資料 (重設)
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-cream rounded-xl border border-cream-dark">
-                      <h3 className="text-[10px] font-bold text-wine/30 uppercase tracking-widest mb-3">統計資訊</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white p-3 rounded-lg border border-cream-dark shadow-sm">
-                          <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總填表人數</span>
-                          <span className="text-2xl font-bold text-wine">{stats.totalRespondents}</span>
-                        </div>
-                        <div className="bg-white p-3 rounded-lg border border-cream-dark shadow-sm">
-                          <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總桌數</span>
-                          <span className="text-2xl font-bold text-wine/60">{state.tables.length}</span>
                         </div>
                       </div>
                     </div>
-
-                    <button
-                      onClick={() => {
-                        if (window.confirm('⚠️ 這是強制重設，將會清除所有快取並重新整理頁面。確定嗎？')) {
-                          localStorage.clear();
-                          window.location.reload();
-                        }
-                      }}
-                      className="w-full flex items-center justify-center gap-2 py-2 text-[10px] text-wine/30 hover:text-gold transition-all"
-                    >
-                      <RefreshCw size={12} />
-                      遇到問題？嘗試強制重新整理
-                    </button>
                   </div>
-                  <div className="p-6 bg-cream border-t border-cream-dark text-center">
-                    <p className="text-[10px] text-wine/20 font-medium">Wedding Seating Chart Management v1.3</p>
+                  <div className="p-4 bg-cream border-t border-cream-dark text-center">
+                    <p className="text-[10px] text-wine/20 font-medium tracking-widest uppercase">Wedding Seating Chart Management System</p>
                   </div>
                 </motion.div>
               </div>
@@ -1666,14 +1706,42 @@ export default function App() {
 
                   <div className="space-y-8">
                     <div className="flex flex-wrap justify-between items-end gap-6">
-                      <div className="flex gap-4">
-                        <div className="bg-white px-6 py-3 rounded-xl border border-cream-dark shadow-sm text-center">
-                          <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總喜餅數</span>
-                          <span className="text-2xl font-bold text-wine">{stats.totalGifts}</span>
+                      <div className="flex flex-col gap-4">
+                        <div className="flex bg-cream p-1 rounded-xl border border-cream-dark w-fit">
+                          <button
+                            onClick={() => setGiftAttendanceFilter('attending')}
+                            className={cn(
+                              "px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+                              giftAttendanceFilter === 'attending'
+                                ? "bg-white text-wine shadow-sm"
+                                : "text-wine/40 hover:text-wine/60"
+                            )}
+                          >
+                            <Users size={16} />
+                            會出席婚宴
+                          </button>
+                          <button
+                            onClick={() => setGiftAttendanceFilter('not-attending')}
+                            className={cn(
+                              "px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+                              giftAttendanceFilter === 'not-attending'
+                                ? "bg-white text-wine shadow-sm"
+                                : "text-wine/40 hover:text-wine/60"
+                            )}
+                          >
+                            <Mail size={16} />
+                            不克參加
+                          </button>
                         </div>
-                        <div className="bg-gold/10 px-6 py-3 rounded-xl border border-gold/20 shadow-sm text-center">
-                          <span className="block text-[10px] text-gold font-bold uppercase mb-1">已領取</span>
-                          <span className="text-2xl font-bold text-gold">{stats.receivedGifts}</span>
+                        <div className="flex gap-4">
+                          <div className="bg-white px-6 py-3 rounded-xl border border-cream-dark shadow-sm text-center">
+                            <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總喜餅數</span>
+                            <span className="text-2xl font-bold text-wine">{stats.totalGifts}</span>
+                          </div>
+                          <div className="bg-gold/10 px-6 py-3 rounded-xl border border-gold/20 shadow-sm text-center">
+                            <span className="block text-[10px] text-gold font-bold uppercase mb-1">已領取</span>
+                            <span className="text-2xl font-bold text-gold">{stats.receivedGifts}</span>
+                          </div>
                         </div>
                       </div>
 
@@ -1718,21 +1786,28 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="space-y-12">
-                      {/* Attending Category */}
+                    <div className="space-y-6">
+                      {/* Filtered Category */}
                       <section className="space-y-4">
                         <div className="flex items-center gap-3">
                           <div className="w-1 h-6 bg-gold rounded-full" />
-                          <h3 className="text-lg font-bold text-wine">會出席婚宴 (現場發放)</h3>
+                          <h3 className="text-lg font-bold text-wine">
+                            {giftAttendanceFilter === 'attending' ? '會出席婚宴 (現場發放)' : '不克參加 (額外領取/補發)'}
+                          </h3>
                           <span className="px-2 py-0.5 bg-gold/10 text-gold text-[10px] font-bold rounded-sm">
-                            {filteredGiftGuests.filter(g => g.attending).length} 位
+                            {filteredGiftGuests.filter(g => giftAttendanceFilter === 'attending' ? g.attending : !g.attending).length} 位
                           </span>
                         </div>
                         <div className="bg-white rounded-2xl shadow-sm border border-cream-dark overflow-hidden">
                           <table className="w-full text-left border-collapse">
                             <thead>
                               <tr className="bg-cream border-b border-cream-dark">
-                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">狀態</th>
+                                {giftAttendanceFilter === 'not-attending' && (
+                                  <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">紅包</th>
+                                )}
+                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">
+                                  {giftAttendanceFilter === 'attending' ? '狀態' : '喜餅'}
+                                </th>
                                 <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px]">賓客姓名</th>
                                 <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-32">數量</th>
                                 <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px]">關係/標籤</th>
@@ -1740,28 +1815,47 @@ export default function App() {
                               </tr>
                             </thead>
                             <tbody>
-                              {filteredGiftGuests.filter(g => g.attending).length === 0 ? (
+                              {filteredGiftGuests.filter(g => giftAttendanceFilter === 'attending' ? g.attending : !g.attending).length === 0 ? (
                                 <tr>
-                                  <td colSpan={5} className="px-8 py-8 text-center text-wine/20 italic text-sm">
-                                    目前沒有符合條件的出席賓客。
+                                  <td colSpan={giftAttendanceFilter === 'attending' ? 5 : 6} className="px-8 py-8 text-center text-wine/20 italic text-sm">
+                                    尚無符合條件的賓客。
                                   </td>
                                 </tr>
                               ) : (
-                                filteredGiftGuests.filter(g => g.attending).map((guest, idx, arr) => (
+                                filteredGiftGuests.filter(g => giftAttendanceFilter === 'attending' ? g.attending : !g.attending).map((guest, idx, arr) => (
                                   <tr key={guest.id} className={cn(
                                     "border-b border-cream-dark hover:bg-cream/50 transition-colors group",
                                     idx === arr.length - 1 && "border-0",
                                     guest.giftReceived && "bg-cream/30"
                                   )}>
+                                    {giftAttendanceFilter === 'not-attending' && (
+                                      <td className="px-8 py-2">
+                                        <button 
+                                          onClick={() => handleToggleRedEnvelope(guest.id)}
+                                          className={cn(
+                                            "w-5 h-5 rounded-sm border flex items-center justify-center transition-all",
+                                            guest.redEnvelopeReceived 
+                                              ? "bg-emerald-500 border-emerald-500 text-white" 
+                                              : "bg-white border-cream-dark text-transparent hover:border-emerald-500/50"
+                                          )}
+                                          title="收到紅包"
+                                        >
+                                          <Check size={12} strokeWidth={3} />
+                                        </button>
+                                      </td>
+                                    )}
                                     <td className="px-8 py-2">
                                       <button 
                                         onClick={() => handleToggleGift(guest.id)}
+                                        disabled={giftAttendanceFilter === 'not-attending' && !guest.redEnvelopeReceived}
                                         className={cn(
                                           "w-5 h-5 rounded-sm border flex items-center justify-center transition-all",
                                           guest.giftReceived 
                                             ? "bg-gold border-gold text-white" 
-                                            : "bg-white border-cream-dark text-transparent hover:border-gold/50"
+                                            : "bg-white border-cream-dark text-transparent hover:border-gold/50",
+                                          giftAttendanceFilter === 'not-attending' && !guest.redEnvelopeReceived && "opacity-20 cursor-not-allowed"
                                         )}
+                                        title={giftAttendanceFilter === 'not-attending' && !guest.redEnvelopeReceived ? "需先收到紅包才可發放" : "發放喜餅"}
                                       >
                                         <Check size={12} strokeWidth={3} />
                                       </button>
@@ -1770,7 +1864,14 @@ export default function App() {
                                       "px-8 py-2 font-bold text-sm transition-all",
                                       guest.giftReceived ? "text-wine/20 line-through" : "text-wine"
                                     )}>
-                                      {guest.name}
+                                      <div className="flex items-center gap-2">
+                                        {guest.name}
+                                        {guest.redEnvelopeReceived && !guest.giftReceived && (
+                                          <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-600 text-[9px] font-bold rounded-sm">
+                                            待發放
+                                          </span>
+                                        )}
+                                      </div>
                                     </td>
                                     <td className="px-8 py-2">
                                       <div className="flex items-center gap-2">
