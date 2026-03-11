@@ -95,8 +95,7 @@ export default function App() {
   const [relationshipFilter, setRelationshipFilter] = useState('all');
   const [activeGuest, setActiveGuest] = useState<GuestGroup | null>(null);
   const [activeTableId, setActiveTableId] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'seating' | 'management' | 'settings'>('dashboard');
-  const [managementSubTab, setManagementSubTab] = useState<'invitations' | 'gifts'>('invitations');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'seating' | 'invitations' | 'gifts' | 'settings'>('dashboard');
   const [isManualFormOpen, setIsManualFormOpen] = useState(false);
   const [editingGuest, setEditingGuest] = useState<GuestGroup | null>(null);
   const [manualForm, setManualForm] = useState({ 
@@ -110,7 +109,8 @@ export default function App() {
     relationship: '',
     attending: true,
     giftCount: 1,
-    giftReceived: false
+    giftReceived: false,
+    redEnvelopeReceived: false
   });
 
   const handleEditGuest = (guest: GuestGroup) => {
@@ -126,7 +126,8 @@ export default function App() {
       relationship: guest.relationship || '',
       attending: guest.attending,
       giftCount: guest.giftCount || 1,
-      giftReceived: guest.giftReceived || false
+      giftReceived: guest.giftReceived || false,
+      redEnvelopeReceived: guest.redEnvelopeReceived || false
     });
     setIsManualFormOpen(true);
   };
@@ -600,14 +601,54 @@ export default function App() {
   const handleToggleGift = (id: string) => {
     setState(prev => ({
       ...prev,
-      unassigned: prev.unassigned.map(g => 
-        g.id === id ? { ...g, giftReceived: !g.giftReceived } : g
-      ),
+      unassigned: prev.unassigned.map(g => {
+        if (g.id === id) {
+          // If not attending, must have red envelope to receive gift
+          if (!g.attending && !g.redEnvelopeReceived && !g.giftReceived) return g;
+          return { ...g, giftReceived: !g.giftReceived };
+        }
+        return g;
+      }),
       tables: prev.tables.map(t => ({
         ...t,
-        guests: t.guests.map(g => 
-          g.id === id ? { ...g, giftReceived: !g.giftReceived } : g
-        )
+        guests: t.guests.map(g => {
+          if (g.id === id) {
+            if (!g.attending && !g.redEnvelopeReceived && !g.giftReceived) return g;
+            return { ...g, giftReceived: !g.giftReceived };
+          }
+          return g;
+        })
+      }))
+    }));
+  };
+
+  const handleToggleRedEnvelope = (id: string) => {
+    setState(prev => ({
+      ...prev,
+      unassigned: prev.unassigned.map(g => {
+        if (g.id === id) {
+          const newValue = !g.redEnvelopeReceived;
+          return { 
+            ...g, 
+            redEnvelopeReceived: newValue,
+            giftReceived: !g.attending && !newValue ? false : g.giftReceived
+          };
+        }
+        return g;
+      }),
+      tables: prev.tables.map(t => ({
+        ...t,
+        guests: t.guests.map(g => {
+          if (g.id === id) {
+            const newValue = !g.redEnvelopeReceived;
+            return { 
+              ...g, 
+              redEnvelopeReceived: newValue,
+              giftReceived: !g.attending && !newValue ? false : g.giftReceived
+            };
+          }
+          return g;
+        })
       }))
     }));
   };
@@ -806,7 +847,8 @@ export default function App() {
       relationship: '',
       attending: true,
       giftCount: 1,
-      giftReceived: false
+      giftReceived: false,
+      redEnvelopeReceived: false
     });
   };
 
@@ -883,14 +925,24 @@ export default function App() {
                   <span>座位安排</span>
                 </button>
                 <button 
-                  onClick={() => setCurrentView('management')}
+                  onClick={() => setCurrentView('invitations')}
                   className={cn(
                     "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                    currentView === 'management' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
+                    currentView === 'invitations' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
                   )}
                 >
-                  <Check size={18} />
-                  <span>進度管理</span>
+                  <Mail size={18} />
+                  <span>喜帖寄送</span>
+                </button>
+                <button 
+                  onClick={() => setCurrentView('gifts')}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                    currentView === 'gifts' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
+                  )}
+                >
+                  <Gift size={18} />
+                  <span>喜餅管理</span>
                 </button>
               </nav>
             </div>
@@ -1307,10 +1359,7 @@ export default function App() {
                                 </div>
                               </div>
                               <button 
-                                onClick={() => {
-                                  setCurrentView('management');
-                                  setManagementSubTab('invitations');
-                                }}
+                                onClick={() => setCurrentView('invitations')}
                                 className="p-2 text-gold hover:bg-gold/5 rounded-lg transition-all"
                               >
                                 <ArrowRight size={20} />
@@ -1329,10 +1378,7 @@ export default function App() {
                                 </div>
                               </div>
                               <button 
-                                onClick={() => {
-                                  setCurrentView('management');
-                                  setManagementSubTab('gifts');
-                                }}
+                                onClick={() => setCurrentView('gifts')}
                                 className="p-2 text-gold hover:bg-gold/5 rounded-lg transition-all"
                               >
                                 <ArrowRight size={20} />
@@ -1431,66 +1477,70 @@ export default function App() {
                 </motion.div>
               )}
 
-              {currentView === 'management' && (
+              {currentView === 'invitations' && (
                 <motion.div 
-                  key="management"
+                  key="invitations"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
                   className="p-12 max-w-7xl mx-auto"
                 >
-                  <div className="mb-12 flex justify-between items-end">
-                    <div>
-                      <h2 className="text-4xl font-bold text-wine font-serif mb-2">進度管理中心</h2>
-                      <p className="text-wine/30 uppercase tracking-widest text-[10px] font-bold">Wedding Progress Management</p>
-                    </div>
-                    <div className="flex bg-cream-dark p-1 rounded-xl border border-cream-dark">
-                      <button 
-                        onClick={() => setManagementSubTab('invitations')}
-                        className={cn(
-                          "flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all",
-                          managementSubTab === 'invitations' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
-                        )}
-                      >
-                        <Mail size={18} />
-                        <span>喜帖寄送</span>
-                      </button>
-                      <button 
-                        onClick={() => setManagementSubTab('gifts')}
-                        className={cn(
-                          "flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all",
-                          managementSubTab === 'gifts' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
-                        )}
-                      >
-                        <Gift size={18} />
-                        <span>喜餅領取</span>
-                      </button>
-                    </div>
+                  <div className="mb-12">
+                    <h2 className="text-4xl font-bold text-wine font-serif mb-2">喜帖寄送管理</h2>
+                    <p className="text-wine/30 uppercase tracking-widest text-[10px] font-bold">Wedding Invitation Management</p>
                   </div>
 
-                  {managementSubTab === 'invitations' ? (
-                    <div className="space-y-8">
-                      <div className="flex justify-between items-center">
-                        <div className="flex gap-4">
-                          <div className="bg-white px-6 py-3 rounded-xl border border-cream-dark shadow-sm text-center">
-                            <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總份數</span>
-                            <span className="text-2xl font-bold text-wine">{stats.needInvitation.length}</span>
-                          </div>
-                          <div className="bg-gold/10 px-6 py-3 rounded-xl border border-gold/20 shadow-sm text-center">
-                            <span className="block text-[10px] text-gold font-bold uppercase mb-1">已準備</span>
-                            <span className="text-2xl font-bold text-gold">{stats.needInvitation.filter(g => g.isPrepared).length}</span>
-                          </div>
+                  <div className="space-y-8">
+                    <div className="flex flex-wrap justify-between items-end gap-6">
+                      <div className="flex gap-4">
+                        <div className="bg-white px-6 py-3 rounded-xl border border-cream-dark shadow-sm text-center">
+                          <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總份數</span>
+                          <span className="text-2xl font-bold text-wine">{stats.needInvitation.length}</span>
+                        </div>
+                        <div className="bg-gold/10 px-6 py-3 rounded-xl border border-gold/20 shadow-sm text-center">
+                          <span className="block text-[10px] text-gold font-bold uppercase mb-1">已準備</span>
+                          <span className="text-2xl font-bold text-gold">{stats.needInvitation.filter(g => g.isPrepared).length}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col gap-3 items-end">
+                        <div className="flex flex-wrap gap-1.5 justify-end max-w-md">
+                          <button
+                            onClick={() => setInvitationTagFilter(null)}
+                            className={cn(
+                              "px-2.5 py-1 rounded-md text-[10px] font-bold transition-all border",
+                              !invitationTagFilter
+                                ? "bg-wine text-white border-wine"
+                                : "bg-white text-wine/50 border-cream-dark hover:border-gold/50"
+                            )}
+                          >
+                            全部
+                          </button>
+                          {uniqueTags.map(tag => (
+                            <button
+                              key={tag}
+                              onClick={() => setInvitationTagFilter(tag)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-md text-[10px] font-bold transition-all border",
+                                invitationTagFilter === tag
+                                  ? "bg-wine text-white border-wine"
+                                  : "bg-white text-wine/50 border-cream-dark hover:border-gold/50"
+                              )}
+                            >
+                              {tag}
+                            </button>
+                          ))}
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-wine/30" size={14} />
                             <input 
                               type="text"
-                              placeholder="搜尋姓名、地址或標籤..."
+                              placeholder="搜尋姓名或地址..."
                               value={invitationSearchQuery}
                               onChange={(e) => setInvitationSearchQuery(e.target.value)}
-                              className="pl-9 pr-4 py-2 bg-white border border-cream-dark rounded-lg text-xs focus:outline-none focus:border-gold/50 w-64"
+                              className="pl-9 pr-4 py-2 bg-white border border-cream-dark rounded-lg text-xs focus:outline-none focus:border-gold/50 w-64 shadow-sm"
                             />
                           </div>
                           <button 
@@ -1502,207 +1552,377 @@ export default function App() {
                           </button>
                         </div>
                       </div>
-
-                      <div className="bg-white rounded-2xl shadow-sm border border-cream-dark overflow-hidden">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-cream border-b border-cream-dark">
-                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">狀態</th>
-                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px]">填表人姓名</th>
-                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px]">郵遞區號</th>
-                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px]">收件地址</th>
-                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px] text-right">操作</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredInvitationGuests.length === 0 ? (
-                              <tr>
-                                <td colSpan={5} className="px-8 py-20 text-center text-wine/20 italic">
-                                  {invitationSearchQuery || invitationTagFilter ? '找不到符合條件的賓客。' : '目前沒有需要寄送喜帖的賓客資料'}
-                                </td>
-                              </tr>
-                            ) : (
-                              filteredInvitationGuests.map((guest, idx) => (
-                                <tr key={guest.id} className={cn(
-                                  "border-b border-cream-dark hover:bg-cream/50 transition-colors group",
-                                  idx === filteredInvitationGuests.length - 1 && "border-0",
-                                  guest.isPrepared && "bg-cream/30"
-                                )}>
-                                  <td className="px-8 py-6">
-                                    <button
-                                      onClick={() => handleTogglePrepared(guest.id)}
-                                      className={cn(
-                                        "w-6 h-6 rounded-sm border flex items-center justify-center transition-all",
-                                        guest.isPrepared 
-                                          ? "bg-gold border-gold text-white" 
-                                          : "bg-white border-cream-dark text-transparent hover:border-gold/50"
-                                      )}
-                                    >
-                                      <Check size={14} strokeWidth={3} />
-                                    </button>
-                                  </td>
-                                  <td className={cn(
-                                    "px-8 py-6 font-bold transition-all",
-                                    guest.isPrepared ? "text-wine/20 line-through" : "text-wine"
-                                  )}>
-                                    <div className="flex items-center gap-3">
-                                      {guest.name}
-                                      <span className="text-[9px] px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-tighter bg-cream-dark text-wine/30">
-                                        {guest.relationship}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className={cn(
-                                    "px-8 py-6 font-mono text-sm transition-all",
-                                    guest.isPrepared ? "text-wine/10" : "text-wine/50"
-                                  )}>
-                                    {guest.zipCode || '---'}
-                                  </td>
-                                  <td className={cn(
-                                    "px-8 py-6 flex items-center gap-2 transition-all",
-                                    guest.isPrepared ? "text-wine/10" : "text-wine/60"
-                                  )}>
-                                    <MapPin size={14} className={cn("transition-all", guest.isPrepared ? "text-wine/5" : "text-wine/20")} />
-                                    {guest.address}
-                                  </td>
-                                  <td className="px-8 py-6 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                      <button 
-                                        onClick={() => {
-                                          const text = `${guest.zipCode ? `[${guest.zipCode}] ` : ''}${guest.address}\n${guest.name} 收`;
-                                          navigator.clipboard.writeText(text);
-                                          alert('已複製寄送資訊！');
-                                        }}
-                                        className={cn(
-                                          "p-2 rounded-md transition-all",
-                                          guest.isPrepared ? "text-wine/10" : "text-wine hover:bg-wine/5"
-                                        )}
-                                        title="複製寄送資訊"
-                                      >
-                                        <Copy size={18} />
-                                      </button>
-                                      <button 
-                                        onClick={() => handleEditGuest(guest)}
-                                        className="p-2 text-wine/30 hover:text-gold hover:bg-gold/5 rounded-md transition-all"
-                                      >
-                                        <Edit2 size={18} />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
                     </div>
-                  ) : (
-                    <div className="space-y-8">
-                      <div className="flex justify-between items-center">
-                        <div className="flex gap-4">
-                          <div className="bg-white px-6 py-3 rounded-xl border border-cream-dark shadow-sm text-center">
-                            <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總喜餅數</span>
-                            <span className="text-2xl font-bold text-wine">{stats.totalGifts}</span>
-                          </div>
-                          <div className="bg-gold/10 px-6 py-3 rounded-xl border border-gold/20 shadow-sm text-center">
-                            <span className="block text-[10px] text-gold font-bold uppercase mb-1">已領取</span>
-                            <span className="text-2xl font-bold text-gold">{stats.receivedGifts}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-wine/30" size={14} />
-                            <input 
-                              type="text"
-                              placeholder="搜尋姓名或標籤..."
-                              value={giftSearchQuery}
-                              onChange={(e) => setGiftSearchQuery(e.target.value)}
-                              className="pl-9 pr-4 py-2 bg-white border border-cream-dark rounded-lg text-xs focus:outline-none focus:border-gold/50 w-64"
-                            />
-                          </div>
-                        </div>
-                      </div>
 
-                      <div className="bg-white rounded-2xl shadow-sm border border-cream-dark overflow-hidden">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-cream border-b border-cream-dark">
-                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">狀態</th>
-                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px]">賓客姓名</th>
-                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-32">數量</th>
-                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px]">關係/標籤</th>
-                              <th className="px-8 py-5 text-wine/30 font-bold uppercase tracking-widest text-[10px] text-right">操作</th>
+                    <div className="bg-white rounded-2xl shadow-sm border border-cream-dark overflow-hidden">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-cream border-b border-cream-dark">
+                            <th className="px-8 py-3 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">狀態</th>
+                            <th className="px-8 py-3 text-wine/30 font-bold uppercase tracking-widest text-[10px]">填表人姓名</th>
+                            <th className="px-8 py-3 text-wine/30 font-bold uppercase tracking-widest text-[10px]">郵遞區號</th>
+                            <th className="px-8 py-3 text-wine/30 font-bold uppercase tracking-widest text-[10px]">收件地址</th>
+                            <th className="px-8 py-3 text-wine/30 font-bold uppercase tracking-widest text-[10px] text-right">操作</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredInvitationGuests.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="px-8 py-12 text-center text-wine/20 italic">
+                                {invitationSearchQuery || invitationTagFilter ? '找不到符合條件的賓客。' : '目前沒有需要寄送喜帖的賓客資料'}
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {filteredGiftGuests.length === 0 ? (
-                              <tr>
-                                <td colSpan={5} className="px-8 py-20 text-center text-wine/20 italic">
-                                  {giftSearchQuery || giftTagFilter ? '找不到符合條件的賓客。' : '目前沒有賓客資料'}
+                          ) : (
+                            filteredInvitationGuests.map((guest, idx) => (
+                              <tr key={guest.id} className={cn(
+                                "border-b border-cream-dark hover:bg-cream/50 transition-colors group",
+                                idx === filteredInvitationGuests.length - 1 && "border-0",
+                                guest.isPrepared && "bg-cream/30"
+                              )}>
+                                <td className="px-8 py-3">
+                                  <button
+                                    onClick={() => handleTogglePrepared(guest.id)}
+                                    className={cn(
+                                      "w-6 h-6 rounded-sm border flex items-center justify-center transition-all",
+                                      guest.isPrepared 
+                                        ? "bg-gold border-gold text-white" 
+                                        : "bg-white border-cream-dark text-transparent hover:border-gold/50"
+                                    )}
+                                  >
+                                    <Check size={14} strokeWidth={3} />
+                                  </button>
                                 </td>
-                              </tr>
-                            ) : (
-                              filteredGiftGuests.map((guest, idx) => (
-                                <tr key={guest.id} className={cn(
-                                  "border-b border-cream-dark hover:bg-cream/50 transition-colors group",
-                                  idx === filteredGiftGuests.length - 1 && "border-0",
-                                  guest.giftReceived && "bg-cream/30"
+                                <td className={cn(
+                                  "px-8 py-3 font-bold transition-all text-sm",
+                                  guest.isPrepared ? "text-wine/20 line-through" : "text-wine"
                                 )}>
-                                  <td className="px-8 py-6">
-                                    <button 
-                                      onClick={() => handleToggleGift(guest.id)}
-                                      className={cn(
-                                        "w-6 h-6 rounded-sm border flex items-center justify-center transition-all",
-                                        guest.giftReceived 
-                                          ? "bg-gold border-gold text-white" 
-                                          : "bg-white border-cream-dark text-transparent hover:border-gold/50"
-                                      )}
-                                    >
-                                      <Check size={14} strokeWidth={3} />
-                                    </button>
-                                  </td>
-                                  <td className={cn(
-                                    "px-8 py-6 font-bold transition-all",
-                                    guest.giftReceived ? "text-wine/20 line-through" : "text-wine"
-                                  )}>
+                                  <div className="flex items-center gap-3">
                                     {guest.name}
-                                  </td>
-                                  <td className="px-8 py-6">
-                                    <div className="flex items-center gap-2">
-                                      <button 
-                                        onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) - 1)}
-                                        className="w-6 h-6 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all"
-                                      >
-                                        -
-                                      </button>
-                                      <span className="font-mono font-bold w-8 text-center">{guest.giftCount || 1}</span>
-                                      <button 
-                                        onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) + 1)}
-                                        className="w-6 h-6 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all"
-                                      >
-                                        +
-                                      </button>
-                                    </div>
-                                  </td>
-                                  <td className="px-8 py-6 text-wine/50 text-sm">
-                                    {guest.relationship}
-                                  </td>
-                                  <td className="px-8 py-6 text-right">
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-tighter bg-cream-dark text-wine/30">
+                                      {guest.relationship}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className={cn(
+                                  "px-8 py-3 font-mono text-sm transition-all",
+                                  guest.isPrepared ? "text-wine/10" : "text-wine/50"
+                                )}>
+                                  {guest.zipCode || '---'}
+                                </td>
+                                <td className={cn(
+                                  "px-8 py-3 flex items-center gap-2 transition-all text-sm",
+                                  guest.isPrepared ? "text-wine/10" : "text-wine/60"
+                                )}>
+                                  <MapPin size={14} className={cn("transition-all", guest.isPrepared ? "text-wine/5" : "text-wine/20")} />
+                                  {guest.address}
+                                </td>
+                                <td className="px-8 py-3 text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button 
+                                      onClick={() => {
+                                        const text = `${guest.zipCode ? `[${guest.zipCode}] ` : ''}${guest.address}\n${guest.name} 收`;
+                                        navigator.clipboard.writeText(text);
+                                        alert('已複製寄送資訊！');
+                                      }}
+                                      className={cn(
+                                        "p-2 rounded-md transition-all",
+                                        guest.isPrepared ? "text-wine/10" : "text-wine hover:bg-wine/5"
+                                      )}
+                                      title="複製寄送資訊"
+                                    >
+                                      <Copy size={18} />
+                                    </button>
                                     <button 
                                       onClick={() => handleEditGuest(guest)}
                                       className="p-2 text-wine/30 hover:text-gold hover:bg-gold/5 rounded-md transition-all"
                                     >
                                       <Edit2 size={18} />
                                     </button>
-                                  </td>
-                                </tr>
-                              ))
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {currentView === 'gifts' && (
+                <motion.div 
+                  key="gifts"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="p-12 max-w-7xl mx-auto"
+                >
+                  <div className="mb-12">
+                    <h2 className="text-4xl font-bold text-wine font-serif mb-2">喜餅領取管理</h2>
+                    <p className="text-wine/30 uppercase tracking-widest text-[10px] font-bold">Wedding Gift Management</p>
+                  </div>
+
+                  <div className="space-y-8">
+                    <div className="flex flex-wrap justify-between items-end gap-6">
+                      <div className="flex gap-4">
+                        <div className="bg-white px-6 py-3 rounded-xl border border-cream-dark shadow-sm text-center">
+                          <span className="block text-[10px] text-wine/30 font-bold uppercase mb-1">總喜餅數</span>
+                          <span className="text-2xl font-bold text-wine">{stats.totalGifts}</span>
+                        </div>
+                        <div className="bg-gold/10 px-6 py-3 rounded-xl border border-gold/20 shadow-sm text-center">
+                          <span className="block text-[10px] text-gold font-bold uppercase mb-1">已領取</span>
+                          <span className="text-2xl font-bold text-gold">{stats.receivedGifts}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-3 items-end">
+                        <div className="flex flex-wrap gap-1.5 justify-end max-w-md">
+                          <button
+                            onClick={() => setGiftTagFilter(null)}
+                            className={cn(
+                              "px-2.5 py-1 rounded-md text-[10px] font-bold transition-all border",
+                              !giftTagFilter
+                                ? "bg-wine text-white border-wine"
+                                : "bg-white text-wine/50 border-cream-dark hover:border-gold/50"
                             )}
-                          </tbody>
-                        </table>
+                          >
+                            全部
+                          </button>
+                          {uniqueTags.map(tag => (
+                            <button
+                              key={tag}
+                              onClick={() => setGiftTagFilter(tag)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-md text-[10px] font-bold transition-all border",
+                                giftTagFilter === tag
+                                  ? "bg-wine text-white border-wine"
+                                  : "bg-white text-wine/50 border-cream-dark hover:border-gold/50"
+                              )}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-wine/30" size={14} />
+                          <input 
+                            type="text"
+                            placeholder="搜尋姓名..."
+                            value={giftSearchQuery}
+                            onChange={(e) => setGiftSearchQuery(e.target.value)}
+                            className="pl-9 pr-4 py-2 bg-white border border-cream-dark rounded-lg text-xs focus:outline-none focus:border-gold/50 w-64 shadow-sm"
+                          />
+                        </div>
                       </div>
                     </div>
-                  )}
+
+                    <div className="space-y-12">
+                      {/* Attending Category */}
+                      <section className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-1 h-6 bg-gold rounded-full" />
+                          <h3 className="text-lg font-bold text-wine">會出席婚宴 (現場發放)</h3>
+                          <span className="px-2 py-0.5 bg-gold/10 text-gold text-[10px] font-bold rounded-sm">
+                            {filteredGiftGuests.filter(g => g.attending).length} 位
+                          </span>
+                        </div>
+                        <div className="bg-white rounded-2xl shadow-sm border border-cream-dark overflow-hidden">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-cream border-b border-cream-dark">
+                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">狀態</th>
+                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px]">賓客姓名</th>
+                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-32">數量</th>
+                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px]">關係/標籤</th>
+                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] text-right">操作</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredGiftGuests.filter(g => g.attending).length === 0 ? (
+                                <tr>
+                                  <td colSpan={5} className="px-8 py-8 text-center text-wine/20 italic text-sm">
+                                    目前沒有符合條件的出席賓客。
+                                  </td>
+                                </tr>
+                              ) : (
+                                filteredGiftGuests.filter(g => g.attending).map((guest, idx, arr) => (
+                                  <tr key={guest.id} className={cn(
+                                    "border-b border-cream-dark hover:bg-cream/50 transition-colors group",
+                                    idx === arr.length - 1 && "border-0",
+                                    guest.giftReceived && "bg-cream/30"
+                                  )}>
+                                    <td className="px-8 py-2">
+                                      <button 
+                                        onClick={() => handleToggleGift(guest.id)}
+                                        className={cn(
+                                          "w-5 h-5 rounded-sm border flex items-center justify-center transition-all",
+                                          guest.giftReceived 
+                                            ? "bg-gold border-gold text-white" 
+                                            : "bg-white border-cream-dark text-transparent hover:border-gold/50"
+                                        )}
+                                      >
+                                        <Check size={12} strokeWidth={3} />
+                                      </button>
+                                    </td>
+                                    <td className={cn(
+                                      "px-8 py-2 font-bold text-sm transition-all",
+                                      guest.giftReceived ? "text-wine/20 line-through" : "text-wine"
+                                    )}>
+                                      {guest.name}
+                                    </td>
+                                    <td className="px-8 py-2">
+                                      <div className="flex items-center gap-2">
+                                        <button 
+                                          onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) - 1)}
+                                          className="w-5 h-5 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all text-xs"
+                                        >
+                                          -
+                                        </button>
+                                        <span className="font-mono font-bold w-6 text-center text-sm">{guest.giftCount || 1}</span>
+                                        <button 
+                                          onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) + 1)}
+                                          className="w-5 h-5 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all text-xs"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    </td>
+                                    <td className="px-8 py-2 text-wine/50 text-xs">
+                                      {guest.relationship}
+                                    </td>
+                                    <td className="px-8 py-2 text-right">
+                                      <button 
+                                        onClick={() => handleEditGuest(guest)}
+                                        className="p-1.5 text-wine/30 hover:text-gold hover:bg-gold/5 rounded-md transition-all"
+                                      >
+                                        <Edit2 size={16} />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </section>
+
+                      {/* Not Attending Category */}
+                      <section className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-1 h-6 bg-wine/20 rounded-full" />
+                          <h3 className="text-lg font-bold text-wine/60">不克參加 (額外領取/補發)</h3>
+                          <span className="px-2 py-0.5 bg-wine/5 text-wine/40 text-[10px] font-bold rounded-sm">
+                            {filteredGiftGuests.filter(g => !g.attending).length} 位
+                          </span>
+                        </div>
+                        <div className="bg-white rounded-2xl shadow-sm border border-cream-dark overflow-hidden opacity-90">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-cream border-b border-cream-dark">
+                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">紅包</th>
+                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">喜餅</th>
+                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px]">賓客姓名</th>
+                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-32">數量</th>
+                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px]">關係/標籤</th>
+                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] text-right">操作</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredGiftGuests.filter(g => !g.attending).length === 0 ? (
+                                <tr>
+                                  <td colSpan={6} className="px-8 py-8 text-center text-wine/20 italic text-sm">
+                                    目前沒有不克參加的賓客。
+                                  </td>
+                                </tr>
+                              ) : (
+                                filteredGiftGuests.filter(g => !g.attending).map((guest, idx, arr) => (
+                                  <tr key={guest.id} className={cn(
+                                    "border-b border-cream-dark hover:bg-cream/50 transition-colors group",
+                                    idx === arr.length - 1 && "border-0",
+                                    guest.giftReceived && "bg-cream/30"
+                                  )}>
+                                    <td className="px-8 py-2">
+                                      <button 
+                                        onClick={() => handleToggleRedEnvelope(guest.id)}
+                                        className={cn(
+                                          "w-5 h-5 rounded-sm border flex items-center justify-center transition-all",
+                                          guest.redEnvelopeReceived 
+                                            ? "bg-emerald-500 border-emerald-500 text-white" 
+                                            : "bg-white border-cream-dark text-transparent hover:border-emerald-500/50"
+                                        )}
+                                        title="收到紅包"
+                                      >
+                                        <Check size={12} strokeWidth={3} />
+                                      </button>
+                                    </td>
+                                    <td className="px-8 py-2">
+                                      <button 
+                                        onClick={() => handleToggleGift(guest.id)}
+                                        disabled={!guest.redEnvelopeReceived}
+                                        className={cn(
+                                          "w-5 h-5 rounded-sm border flex items-center justify-center transition-all",
+                                          guest.giftReceived 
+                                            ? "bg-gold border-gold text-white" 
+                                            : "bg-white border-cream-dark text-transparent hover:border-gold/50",
+                                          !guest.redEnvelopeReceived && "opacity-20 cursor-not-allowed"
+                                        )}
+                                        title={guest.redEnvelopeReceived ? "發放喜餅" : "需先收到紅包才可發放"}
+                                      >
+                                        <Check size={12} strokeWidth={3} />
+                                      </button>
+                                    </td>
+                                    <td className={cn(
+                                      "px-8 py-2 font-bold text-sm transition-all",
+                                      guest.giftReceived ? "text-wine/20 line-through" : "text-wine"
+                                    )}>
+                                      <div className="flex items-center gap-2">
+                                        {guest.name}
+                                        {guest.redEnvelopeReceived && !guest.giftReceived && (
+                                          <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-600 text-[9px] font-bold rounded-sm">
+                                            待發放
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="px-8 py-2">
+                                      <div className="flex items-center gap-2">
+                                        <button 
+                                          onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) - 1)}
+                                          className="w-5 h-5 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all text-xs"
+                                        >
+                                          -
+                                        </button>
+                                        <span className="font-mono font-bold w-6 text-center text-sm">{guest.giftCount || 1}</span>
+                                        <button 
+                                          onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) + 1)}
+                                          className="w-5 h-5 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all text-xs"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    </td>
+                                    <td className="px-8 py-2 text-wine/50 text-xs">
+                                      {guest.relationship}
+                                    </td>
+                                    <td className="px-8 py-2 text-right">
+                                      <button 
+                                        onClick={() => handleEditGuest(guest)}
+                                        className="p-1.5 text-wine/30 hover:text-gold hover:bg-gold/5 rounded-md transition-all"
+                                      >
+                                        <Edit2 size={16} />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </section>
+                    </div>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

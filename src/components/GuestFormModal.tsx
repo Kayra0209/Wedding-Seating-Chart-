@@ -25,6 +25,7 @@ interface GuestFormModalProps {
     attending: boolean;
     giftCount: number;
     giftReceived: boolean;
+    redEnvelopeReceived: boolean;
   };
   setForm: React.Dispatch<React.SetStateAction<any>>;
   isEditing: boolean;
@@ -143,6 +144,64 @@ export const GuestFormModal: React.FC<GuestFormModalProps> = ({
                 onChange={e => setForm(prev => ({ ...prev, vegetarian: parseInt(e.target.value) || 0 }))}
                 className="w-full px-4 py-3 bg-cream border border-cream-dark rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold transition-all"
               />
+            </div>
+          </div>
+
+          {/* Attendance & Gift Info */}
+          <div className="space-y-4 pt-4 border-t border-cream-dark">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-wine/30 uppercase tracking-widest ml-1">出席狀態</label>
+                <div className="flex gap-2">
+                  <button 
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, attending: true }))}
+                    className={cn(
+                      "flex-1 py-3 rounded-lg border font-bold transition-all text-sm",
+                      form.attending 
+                        ? "bg-wine text-white border-wine shadow-sm" 
+                        : "bg-cream border-cream-dark text-wine/40 hover:border-gold/50"
+                    )}
+                  >
+                    會出席
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, attending: false }))}
+                    className={cn(
+                      "flex-1 py-3 rounded-lg border font-bold transition-all text-sm",
+                      !form.attending 
+                        ? "bg-wine text-white border-wine shadow-sm" 
+                        : "bg-cream border-cream-dark text-wine/40 hover:border-gold/50"
+                    )}
+                  >
+                    不克參加
+                  </button>
+                </div>
+              </div>
+              {!form.attending && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-wine/30 uppercase tracking-widest ml-1">紅包狀態</label>
+                  <button 
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, redEnvelopeReceived: !prev.redEnvelopeReceived }))}
+                    className={cn(
+                      "w-full flex items-center justify-center gap-3 py-3 rounded-lg border font-bold transition-all text-sm",
+                      form.redEnvelopeReceived 
+                        ? "bg-emerald-500 border-emerald-500 text-white shadow-sm" 
+                        : "bg-cream border-cream-dark text-wine/40 hover:border-gold/50"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-5 h-5 rounded-sm border flex items-center justify-center transition-all",
+                      form.redEnvelopeReceived ? "bg-white text-emerald-500 border-white" : "bg-white border-cream-dark text-transparent"
+                    )}>
+                      <Check size={12} strokeWidth={4} />
+                    </div>
+                    {form.redEnvelopeReceived ? '已收到紅包' : '尚未收到紅包'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

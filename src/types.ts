@@ -14,6 +14,7 @@ export interface GuestGroup {
   relationship: string;
   giftReceived?: boolean;
   giftCount?: number;
+  redEnvelopeReceived?: boolean;
 }
 
 export interface Table {
