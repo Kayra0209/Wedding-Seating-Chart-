@@ -47,17 +47,24 @@ import {
   Gift,
   Search,
   AlertCircle,
-  ArrowRight
+  ArrowRight,
+  Map as MapIcon,
+  Save,
+  FileText
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { TableContainer } from './components/TableContainer';
 import { GuestCard } from './components/GuestCard';
 import { GuestFormModal } from './components/GuestFormModal';
+import { FloorPlan } from './components/FloorPlan';
 import { GuestGroup, Table, SeatingState } from './types';
 import { parseCSVFromUrl } from './utils/csv';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -96,7 +103,7 @@ export default function App() {
   const [relationshipFilter, setRelationshipFilter] = useState('all');
   const [activeGuest, setActiveGuest] = useState<GuestGroup | null>(null);
   const [activeTableId, setActiveTableId] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'seating' | 'invitations' | 'gifts' | 'settings'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'seating' | 'floorplan' | 'invitations' | 'gifts' | 'settings'>('dashboard');
   const [isManualFormOpen, setIsManualFormOpen] = useState(false);
   const [editingGuest, setEditingGuest] = useState<GuestGroup | null>(null);
   const [manualForm, setManualForm] = useState({ 
@@ -458,6 +465,95 @@ export default function App() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+  
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setTextColor(40, 40, 40);
+    doc.text('婚禮座位安排表', pageWidth / 2, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.text(`匯出日期: ${new Date().toLocaleDateString()}`, pageWidth / 2, 28, { align: 'center' });
+
+    let currentY = 40;
+
+    state.tables.forEach((table) => {
+      if (table.guests.length === 0) return;
+
+      // Check if we need a new page
+      if (currentY > 250) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setFontSize(14);
+      doc.setTextColor(184, 158, 101); // Gold color
+      doc.text(`第 ${table.number} 桌 ${table.name ? `(${table.name})` : ''}`, 14, currentY);
+      currentY += 5;
+
+      const tableData = table.guests.map(g => [
+        g.name,
+        g.adults.toString(),
+        g.kids.toString(),
+        g.total.toString(),
+        g.vegetarian > 0 ? `素食 x${g.vegetarian}` : '-',
+        g.relationship || '',
+        g.note || ''
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['姓名', '大人', '兒童', '總計', '飲食', '關係', '備註']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [100, 30, 30], textColor: [255, 255, 255] }, // Wine color
+        styles: { fontSize: 9, font: 'helvetica' },
+        margin: { left: 14, right: 14 },
+        didDrawPage: (data) => {
+          currentY = data.cursor?.y || currentY;
+        }
+      });
+
+      currentY += 15;
+    });
+
+    // Unassigned
+    if (state.unassigned.length > 0) {
+      if (currentY > 230) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setFontSize(14);
+      doc.setTextColor(150, 150, 150);
+      doc.text('未分配賓客', 14, currentY);
+      currentY += 5;
+
+      const unassignedData = state.unassigned.map(g => [
+        g.name,
+        g.total.toString(),
+        g.relationship || '',
+        g.note || ''
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['姓名', '人數', '關係', '備註']],
+        body: unassignedData,
+        theme: 'grid',
+        headStyles: { fillColor: [150, 150, 150] },
+        styles: { fontSize: 9 },
+        didDrawPage: (data) => {
+          currentY = data.cursor?.y || currentY;
+        }
+      });
+    }
+
+    doc.save(`婚禮座位安排表-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const handleExportInvitations = () => {
@@ -926,6 +1022,16 @@ export default function App() {
                   <span>座位安排</span>
                 </button>
                 <button 
+                  onClick={() => setCurrentView('floorplan')}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                    currentView === 'floorplan' ? "bg-white text-gold shadow-sm" : "text-wine/60 hover:text-wine hover:bg-white/50"
+                  )}
+                >
+                  <MapIcon size={18} />
+                  <span>平面圖</span>
+                </button>
+                <button 
                   onClick={() => setCurrentView('invitations')}
                   className={cn(
                     "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
@@ -1082,6 +1188,17 @@ export default function App() {
                           >
                             <FileSpreadsheet size={20} />
                             匯出座位安排 (CSV)
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              handleExportPDF();
+                              setIsSettingsOpen(false);
+                            }}
+                            className="w-full flex items-center justify-center gap-2 py-4 bg-cream hover:bg-cream-dark text-wine rounded-xl font-bold transition-all border border-cream-dark"
+                          >
+                            <FileText size={20} />
+                            匯出座位安排 (PDF)
                           </button>
 
                           <button
@@ -1487,6 +1604,13 @@ export default function App() {
                             >
                               <FileSpreadsheet size={18} />
                               匯出喜帖名單 (CSV)
+                            </button>
+                            <button 
+                              onClick={handleExportPDF}
+                              className="w-full flex items-center gap-3 p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all text-sm font-bold"
+                            >
+                              <FileText size={18} />
+                              匯出座位表 (PDF)
                             </button>
                           </div>
                         </div>
@@ -1909,6 +2033,49 @@ export default function App() {
                         </div>
                       </section>
                     </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {currentView === 'floorplan' && (
+                <motion.div 
+                  key="floorplan"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="h-full flex flex-col"
+                >
+                  <div className="p-8 pb-0 flex justify-between items-end">
+                    <div>
+                      <h2 className="text-4xl font-bold text-wine font-serif mb-2">場地平面圖</h2>
+                      <p className="text-wine/30 uppercase tracking-widest text-[10px] font-bold">Wedding Floor Plan View</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => {
+                          const element = document.querySelector('.floor-plan-container');
+                          if (element) {
+                            html2canvas(element as HTMLElement).then(canvas => {
+                              const imgData = canvas.toDataURL('image/png');
+                              const pdf = new jsPDF('p', 'mm', 'a4');
+                              const imgProps = pdf.getImageProperties(imgData);
+                              const pdfWidth = pdf.internal.pageSize.getWidth();
+                              const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                              pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                              pdf.save(`婚禮平面圖-${new Date().toISOString().split('T')[0]}.pdf`);
+                            });
+                          }
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-gold text-white rounded-lg text-xs font-bold hover:bg-gold-dark transition-all shadow-sm"
+                      >
+                        <Download size={14} />
+                        匯出平面圖 (PDF)
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-hidden floor-plan-container">
+                    <FloorPlan tables={state.tables} />
                   </div>
                 </motion.div>
               )}
