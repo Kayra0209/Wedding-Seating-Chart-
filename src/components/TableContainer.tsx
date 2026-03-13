@@ -113,7 +113,7 @@ export const TableContainer: React.FC<TableContainerProps> = ({ table, onDelete,
             )}>
               {table.number}
             </div>
-            <span className="font-bold text-wine">桌次</span>
+            <span className="font-bold text-wine">{table.number === 1 ? "主桌" : "桌次"}</span>
           </div>
           
           <div className="flex items-center gap-2">

@@ -38,28 +38,28 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ tables }) => {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         className={cn(
-          "relative w-24 h-24 rounded-full flex flex-col items-center justify-center border-2 transition-all shadow-md bg-white",
+          "relative w-32 h-32 rounded-full flex flex-col items-center justify-center border-2 transition-all shadow-md bg-white",
           isMain ? "border-gold bg-gold/5 ring-4 ring-gold/10" : "border-cream-dark hover:border-gold/50",
           occupancy > 100 ? "border-red-400 bg-red-50" : ""
         )}
       >
         {isMain && (
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gold text-white p-1 rounded-full shadow-sm">
-            <Crown size={12} />
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gold text-white p-1.5 rounded-full shadow-sm">
+            <Crown size={16} />
           </div>
         )}
-        <span className={cn("text-xs font-bold", isMain ? "text-gold" : "text-wine")}>
+        <span className={cn("text-sm font-bold", isMain ? "text-gold" : "text-wine")}>
           {isMain ? "主桌" : `第 ${table.number} 桌`}
         </span>
         <div className="flex items-center gap-1 mt-1">
-          <Users size={10} className="text-wine/30" />
-          <span className="text-[10px] font-mono font-bold text-wine/60">
+          <Users size={12} className="text-wine/30" />
+          <span className="text-xs font-mono font-bold text-wine/60">
             {totalGuests}/{table.capacity}
           </span>
         </div>
         
         {/* Occupancy Indicator */}
-        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-12 h-1 bg-cream-dark rounded-full overflow-hidden">
+        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-cream-dark rounded-full overflow-hidden">
           <div 
             className={cn(
               "h-full transition-all duration-500",
@@ -74,7 +74,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ tables }) => {
 
   return (
     <div className="w-full h-full bg-stone-50 p-8 overflow-auto custom-scrollbar">
-      <div className="max-w-6xl mx-auto bg-white border-4 border-cream-dark rounded-3xl p-12 shadow-inner relative min-h-[1200px]">
+      <div className="max-w-6xl mx-auto bg-white border-4 border-cream-dark rounded-3xl p-12 pb-48 shadow-inner relative min-h-[1400px]">
         
         {/* Stage Area */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-wine rounded-b-3xl flex items-center justify-center shadow-lg z-10">
@@ -93,7 +93,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ tables }) => {
         </div>
 
         {/* Tables Arrangement */}
-        <div className="mt-64 grid grid-cols-2 gap-x-48 gap-y-16 relative z-20">
+        <div className="mt-72 grid grid-cols-2 gap-x-48 gap-y-24 relative z-20">
           {/* Left Side Columns */}
           <div className="grid grid-cols-2 gap-x-12 gap-y-24">
             {leftTables.map((table, idx) => (

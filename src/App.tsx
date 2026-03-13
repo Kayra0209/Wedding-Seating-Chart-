@@ -1842,7 +1842,7 @@ export default function App() {
                             )}
                           >
                             <Users size={16} />
-                            會出席婚宴
+                            出席
                           </button>
                           <button
                             onClick={() => setGiftAttendanceFilter('not-attending')}
@@ -1916,7 +1916,7 @@ export default function App() {
                         <div className="flex items-center gap-3">
                           <div className="w-1 h-6 bg-gold rounded-full" />
                           <h3 className="text-lg font-bold text-wine">
-                            {giftAttendanceFilter === 'attending' ? '會出席婚宴 (現場發放)' : '不克參加 (額外領取/補發)'}
+                            {giftAttendanceFilter === 'attending' ? '出席 (現場發放)' : '不克參加 (額外領取/補發)'}
                           </h3>
                           <span className="px-2 py-0.5 bg-gold/10 text-gold text-[10px] font-bold rounded-sm">
                             {filteredGiftGuests.filter(g => giftAttendanceFilter === 'attending' ? g.attending : !g.attending).length} 位
@@ -1932,7 +1932,7 @@ export default function App() {
                                 <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">
                                   {giftAttendanceFilter === 'attending' ? '狀態' : '喜餅'}
                                 </th>
-                                <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px]">賓客姓名</th>
+                                <th className="px-4 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-32">賓客姓名</th>
                                 <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-32">數量</th>
                                 <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px]">關係/標籤</th>
                                 <th className="px-8 py-2 text-wine/30 font-bold uppercase tracking-widest text-[10px] text-right">操作</th>
