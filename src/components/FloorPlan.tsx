@@ -38,7 +38,7 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ tables }) => {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         className={cn(
-          "relative w-32 h-32 rounded-full flex flex-col items-center justify-center border-2 transition-all shadow-md bg-white",
+          "relative w-32 h-32 rounded-full flex flex-col items-center justify-center border-2 transition-all shadow-md bg-white group",
           isMain ? "border-gold bg-gold/5 ring-4 ring-gold/10" : "border-cream-dark hover:border-gold/50",
           occupancy > 100 ? "border-red-400 bg-red-50" : ""
         )}
@@ -68,6 +68,25 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ tables }) => {
             style={{ width: `${Math.min(occupancy, 100)}%` }}
           />
         </div>
+
+        {/* Guest Names Tooltip */}
+        {table.guests.length > 0 && (
+          <div className="absolute invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 z-50 bottom-full mb-4 left-1/2 -translate-x-1/2 w-48 bg-wine text-white p-3 rounded-xl shadow-2xl pointer-events-none">
+            <div className="text-[10px] uppercase tracking-widest text-white/40 mb-2 border-b border-white/10 pb-1">
+              賓客名單 ({totalGuests}位)
+            </div>
+            <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+              {table.guests.map((guest, i) => (
+                <div key={i} className="text-xs flex justify-between items-center">
+                  <span className="font-bold truncate">{guest.name}</span>
+                  <span className="text-[10px] text-white/60">{guest.total}人</span>
+                </div>
+              ))}
+            </div>
+            {/* Tooltip Arrow */}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-wine" />
+          </div>
+        )}
       </motion.div>
     );
   };

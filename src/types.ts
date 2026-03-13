@@ -15,6 +15,7 @@ export interface GuestGroup {
   giftReceived?: boolean;
   giftCount?: number;
   redEnvelopeReceived?: boolean;
+  isHandDelivered?: boolean;
 }
 
 export interface Table {

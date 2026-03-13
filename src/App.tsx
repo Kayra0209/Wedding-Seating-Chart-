@@ -118,7 +118,8 @@ export default function App() {
     attending: true,
     giftCount: 1,
     giftReceived: false,
-    redEnvelopeReceived: false
+    redEnvelopeReceived: false,
+    isHandDelivered: false
   });
 
   const handleEditGuest = (guest: GuestGroup) => {
@@ -135,7 +136,8 @@ export default function App() {
       attending: guest.attending,
       giftCount: guest.giftCount || 1,
       giftReceived: guest.giftReceived || false,
-      redEnvelopeReceived: guest.redEnvelopeReceived || false
+      redEnvelopeReceived: guest.redEnvelopeReceived || false,
+      isHandDelivered: guest.isHandDelivered || false
     });
     setIsManualFormOpen(true);
   };
@@ -715,6 +717,21 @@ export default function App() {
           }
           return g;
         })
+      }))
+    }));
+  };
+
+  const handleToggleHandDelivered = (id: string) => {
+    setState(prev => ({
+      ...prev,
+      unassigned: prev.unassigned.map(g => 
+        g.id === id ? { ...g, isHandDelivered: !g.isHandDelivered } : g
+      ),
+      tables: prev.tables.map(t => ({
+        ...t,
+        guests: t.guests.map(g => 
+          g.id === id ? { ...g, isHandDelivered: !g.isHandDelivered } : g
+        )
       }))
     }));
   };
@@ -1312,7 +1329,8 @@ export default function App() {
                   relationship: '',
                   attending: true,
                   giftCount: 1,
-                  giftReceived: false
+                  giftReceived: false,
+                  isHandDelivered: false
                 });
               }}
               onSubmit={handleSaveManual}
@@ -1723,6 +1741,7 @@ export default function App() {
                         <thead>
                           <tr className="bg-cream border-b border-cream-dark">
                             <th className="px-8 py-3 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">狀態</th>
+                            <th className="px-8 py-3 text-wine/30 font-bold uppercase tracking-widest text-[10px] w-16">親送</th>
                             <th className="px-8 py-3 text-wine/30 font-bold uppercase tracking-widest text-[10px]">填表人姓名</th>
                             <th className="px-8 py-3 text-wine/30 font-bold uppercase tracking-widest text-[10px]">郵遞區號</th>
                             <th className="px-8 py-3 text-wine/30 font-bold uppercase tracking-widest text-[10px]">收件地址</th>
@@ -1751,6 +1770,19 @@ export default function App() {
                                       guest.isPrepared 
                                         ? "bg-gold border-gold text-white" 
                                         : "bg-white border-cream-dark text-transparent hover:border-gold/50"
+                                    )}
+                                  >
+                                    <Check size={14} strokeWidth={3} />
+                                  </button>
+                                </td>
+                                <td className="px-8 py-3">
+                                  <button
+                                    onClick={() => handleToggleHandDelivered(guest.id)}
+                                    className={cn(
+                                      "w-6 h-6 rounded-sm border flex items-center justify-center transition-all",
+                                      guest.isHandDelivered 
+                                        ? "bg-wine border-wine text-white" 
+                                        : "bg-white border-cream-dark text-transparent hover:border-wine/50"
                                     )}
                                   >
                                     <Check size={14} strokeWidth={3} />
@@ -1988,8 +2020,8 @@ export default function App() {
                                       "px-8 py-2 font-bold text-sm transition-all",
                                       guest.giftReceived ? "text-wine/20 line-through" : "text-wine"
                                     )}>
-                                      <div className="flex items-center gap-2">
-                                        {guest.name}
+                                      <div className="flex items-center gap-2 max-w-[150px]">
+                                        <span className="truncate" title={guest.name}>{guest.name}</span>
                                         {guest.redEnvelopeReceived && !guest.giftReceived && (
                                           <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-600 text-[9px] font-bold rounded-sm">
                                             待發放
