@@ -24,6 +24,8 @@ export interface Table {
   name?: string;
   guests: GuestGroup[];
   capacity: number;
+  x?: number;
+  y?: number;
 }
 
 export interface SeatingState {

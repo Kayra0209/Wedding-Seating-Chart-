@@ -21,12 +21,19 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ tables }) => {
   // - Other tables in two columns on each side, staggered
 
   const mainTable = tables.find(t => t.number === 1) || tables[0];
-  const otherTables = tables.filter(t => t.id !== mainTable.id);
+  const otherTables = tables
+    .filter(t => t.id !== mainTable.id)
+    .sort((a, b) => a.number - b.number);
 
-  // Split other tables into left and right sides
-  // We'll assume 2 columns on each side
-  const leftTables = otherTables.filter((_, i) => i % 2 === 0);
-  const rightTables = otherTables.filter((_, i) => i % 2 !== 0);
+  const half = Math.ceil(otherTables.length / 2);
+  const leftSide = otherTables.slice(0, half);
+  const rightSide = otherTables.slice(half);
+
+  // Split each side into 2 columns using a Z-pattern (row-major)
+  const col1 = leftSide.filter((_, i) => i % 2 === 0);
+  const col2 = leftSide.filter((_, i) => i % 2 !== 0);
+  const col3 = rightSide.filter((_, i) => i % 2 === 0);
+  const col4 = rightSide.filter((_, i) => i % 2 !== 0);
 
   const renderTable = (table: Table, isMain: boolean = false) => {
     const totalGuests = table.guests.reduce((sum, g) => sum + g.total, 0);
@@ -117,35 +124,41 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ tables }) => {
         </div>
 
         {/* Tables Arrangement */}
-        <div className="mt-72 grid grid-cols-2 gap-x-48 gap-y-24 relative z-20">
+        <div className="mt-72 flex justify-center gap-x-48 relative z-20">
           {/* Left Side Columns */}
-          <div className="grid grid-cols-2 gap-x-12 gap-y-24">
-            {leftTables.map((table, idx) => (
-              <div 
-                key={table.id} 
-                className={cn(
-                  "flex justify-center",
-                  idx % 2 !== 0 ? "mt-12" : "" // Staggered effect
-                )}
-              >
-                {renderTable(table)}
-              </div>
-            ))}
+          <div className="flex gap-x-12">
+            <div className="flex flex-col gap-y-24">
+              {col1.map(table => (
+                <div key={table.id} className="flex justify-center">
+                  {renderTable(table)}
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-y-24 mt-12">
+              {col2.map(table => (
+                <div key={table.id} className="flex justify-center">
+                  {renderTable(table)}
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Right Side Columns */}
-          <div className="grid grid-cols-2 gap-x-12 gap-y-24">
-            {rightTables.map((table, idx) => (
-              <div 
-                key={table.id} 
-                className={cn(
-                  "flex justify-center",
-                  idx % 2 === 0 ? "mt-12" : "" // Staggered effect (opposite of left)
-                )}
-              >
-                {renderTable(table)}
-              </div>
-            ))}
+          <div className="flex gap-x-12">
+            <div className="flex flex-col gap-y-24 mt-12">
+              {col3.map(table => (
+                <div key={table.id} className="flex justify-center">
+                  {renderTable(table)}
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-y-24">
+              {col4.map(table => (
+                <div key={table.id} className="flex justify-center">
+                  {renderTable(table)}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 

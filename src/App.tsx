@@ -98,6 +98,7 @@ export default function App() {
   const [invitationSearchQuery, setInvitationSearchQuery] = useState('');
   const [invitationTagFilter, setInvitationTagFilter] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const floorPlanContainerRef = useRef<HTMLDivElement>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [relationshipFilter, setRelationshipFilter] = useState('all');
@@ -736,6 +737,13 @@ export default function App() {
     }));
   };
 
+  const handleUpdateTablePosition = (id: string, x: number, y: number) => {
+    setState(prev => ({
+      ...prev,
+      tables: prev.tables.map(t => t.id === id ? { ...t, x, y } : t)
+    }));
+  };
+
   const handleToggleRedEnvelope = (id: string) => {
     setState(prev => ({
       ...prev,
@@ -794,25 +802,61 @@ export default function App() {
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
+    const { active, over, delta } = event;
     setActiveGuest(null);
     setActiveTableId(null);
+
+    // Handle Floor Plan Movement
+    if (active.data.current?.type === 'floorplan-table') {
+      const tableId = active.data.current.tableId;
+      const table = state.tables.find(t => t.id === tableId);
+      if (table && floorPlanContainerRef.current) {
+        const containerWidth = floorPlanContainerRef.current.offsetWidth;
+        const containerHeight = floorPlanContainerRef.current.offsetHeight;
+
+        const deltaXPercent = (delta.x / containerWidth) * 100;
+        const deltaYPercent = (delta.y / containerHeight) * 100;
+
+        const newX = Math.max(0, Math.min(90, (table.x ?? 0) + deltaXPercent));
+        const newY = Math.max(0, Math.min(95, (table.y ?? 0) + deltaYPercent));
+
+        handleUpdateTablePosition(tableId, newX, newY);
+      }
+      return;
+    }
 
     if (!over) return;
 
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    // Handle Table Reordering
-    if (active.data.current?.table && over.data.current?.table) {
-      if (activeId !== overId) {
+    // Handle Table Swapping (Seating View)
+    if (active.data.current?.table && !active.data.current?.type) {
+      let targetTableId = overId;
+      
+      // If hovering over a guest, find the table it belongs to
+      if (!over.data.current?.table && over.data.current?.guest) {
+        const targetTable = state.tables.find(t => t.guests.some(g => g.id === overId));
+        if (targetTable) {
+          targetTableId = targetTable.id;
+        }
+      }
+
+      if (targetTableId && activeId !== targetTableId) {
         setState(prev => {
           const oldIndex = prev.tables.findIndex(t => t.id === activeId);
-          const newIndex = prev.tables.findIndex(t => t.id === overId);
-          const movedTables = arrayMove(prev.tables, oldIndex, newIndex);
+          const newIndex = prev.tables.findIndex(t => t.id === targetTableId);
           
-          // Auto-update table numbers sequentially
-          const updatedTables = movedTables.map((t: Table, index: number) => ({
+          if (oldIndex === -1 || newIndex === -1) return prev;
+
+          const newTables = [...prev.tables];
+          // Swap the tables in the array
+          const temp = newTables[oldIndex];
+          newTables[oldIndex] = newTables[newIndex];
+          newTables[newIndex] = temp;
+          
+          // Keep the table numbers sequential based on their new positions
+          const updatedTables = newTables.map((t, index) => ({
             ...t,
             number: index + 1
           }));
@@ -2106,8 +2150,11 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-hidden floor-plan-container">
-                    <FloorPlan tables={state.tables} />
+                  <div className="flex-1 overflow-hidden floor-plan-container" ref={floorPlanContainerRef}>
+                    <FloorPlan 
+                      tables={state.tables} 
+                      onUpdatePosition={handleUpdateTablePosition}
+                    />
                   </div>
                 </motion.div>
               )}
