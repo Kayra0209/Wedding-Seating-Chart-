@@ -51,6 +51,11 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ tables }) => {
         <span className={cn("text-sm font-bold", isMain ? "text-gold" : "text-wine")}>
           {isMain ? "主桌" : `第 ${table.number} 桌`}
         </span>
+        {table.name && (
+          <span className="text-[10px] text-wine/40 font-medium truncate max-w-[80%] text-center">
+            {table.name}
+          </span>
+        )}
         <div className="flex items-center gap-1 mt-1">
           <Users size={12} className="text-wine/30" />
           <span className="text-xs font-mono font-bold text-wine/60">
