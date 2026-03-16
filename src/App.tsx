@@ -98,7 +98,6 @@ export default function App() {
   const [invitationSearchQuery, setInvitationSearchQuery] = useState('');
   const [invitationTagFilter, setInvitationTagFilter] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const floorPlanContainerRef = useRef<HTMLDivElement>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [relationshipFilter, setRelationshipFilter] = useState('all');
@@ -135,7 +134,7 @@ export default function App() {
       vegetarian: guest.vegetarian,
       relationship: guest.relationship || '',
       attending: guest.attending,
-      giftCount: guest.giftCount || 1,
+      giftCount: guest.giftCount ?? 1,
       giftReceived: guest.giftReceived || false,
       redEnvelopeReceived: guest.redEnvelopeReceived || false,
       isHandDelivered: guest.isHandDelivered || false
@@ -175,8 +174,8 @@ export default function App() {
     const invitationList = attending.filter(g => g.address && g.address.trim().length > 0);
     const totalSeated = state.tables.reduce((s, t) => s + t.guests.reduce((gs, g) => gs + g.total, 0), 0);
     const totalPeople = attending.reduce((s, g) => s + g.total, 0);
-    const totalGifts = allGuests.reduce((s, g) => s + (g.giftCount || 1), 0);
-    const receivedGifts = allGuests.filter(g => g.giftReceived).reduce((s, g) => s + (g.giftCount || 1), 0);
+    const totalGifts = allGuests.reduce((s, g) => s + (g.giftCount ?? 1), 0);
+    const receivedGifts = allGuests.filter(g => g.giftReceived).reduce((s, g) => s + (g.giftCount ?? 1), 0);
     
     return {
       totalRespondents: attending.length,
@@ -737,13 +736,6 @@ export default function App() {
     }));
   };
 
-  const handleUpdateTablePosition = (id: string, x: number, y: number) => {
-    setState(prev => ({
-      ...prev,
-      tables: prev.tables.map(t => t.id === id ? { ...t, x, y } : t)
-    }));
-  };
-
   const handleToggleRedEnvelope = (id: string) => {
     setState(prev => ({
       ...prev,
@@ -802,61 +794,25 @@ export default function App() {
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over, delta } = event;
+    const { active, over } = event;
     setActiveGuest(null);
     setActiveTableId(null);
-
-    // Handle Floor Plan Movement
-    if (active.data.current?.type === 'floorplan-table') {
-      const tableId = active.data.current.tableId;
-      const table = state.tables.find(t => t.id === tableId);
-      if (table && floorPlanContainerRef.current) {
-        const containerWidth = floorPlanContainerRef.current.offsetWidth;
-        const containerHeight = floorPlanContainerRef.current.offsetHeight;
-
-        const deltaXPercent = (delta.x / containerWidth) * 100;
-        const deltaYPercent = (delta.y / containerHeight) * 100;
-
-        const newX = Math.max(0, Math.min(90, (table.x ?? 0) + deltaXPercent));
-        const newY = Math.max(0, Math.min(95, (table.y ?? 0) + deltaYPercent));
-
-        handleUpdateTablePosition(tableId, newX, newY);
-      }
-      return;
-    }
 
     if (!over) return;
 
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    // Handle Table Swapping (Seating View)
-    if (active.data.current?.table && !active.data.current?.type) {
-      let targetTableId = overId;
-      
-      // If hovering over a guest, find the table it belongs to
-      if (!over.data.current?.table && over.data.current?.guest) {
-        const targetTable = state.tables.find(t => t.guests.some(g => g.id === overId));
-        if (targetTable) {
-          targetTableId = targetTable.id;
-        }
-      }
-
-      if (targetTableId && activeId !== targetTableId) {
+    // Handle Table Reordering
+    if (active.data.current?.table && over.data.current?.table) {
+      if (activeId !== overId) {
         setState(prev => {
           const oldIndex = prev.tables.findIndex(t => t.id === activeId);
-          const newIndex = prev.tables.findIndex(t => t.id === targetTableId);
+          const newIndex = prev.tables.findIndex(t => t.id === overId);
+          const movedTables = arrayMove(prev.tables, oldIndex, newIndex);
           
-          if (oldIndex === -1 || newIndex === -1) return prev;
-
-          const newTables = [...prev.tables];
-          // Swap the tables in the array
-          const temp = newTables[oldIndex];
-          newTables[oldIndex] = newTables[newIndex];
-          newTables[newIndex] = temp;
-          
-          // Keep the table numbers sequential based on their new positions
-          const updatedTables = newTables.map((t, index) => ({
+          // Auto-update table numbers sequentially
+          const updatedTables = movedTables.map((t: Table, index: number) => ({
             ...t,
             number: index + 1
           }));
@@ -2076,14 +2032,14 @@ export default function App() {
                                     <td className="px-8 py-2">
                                       <div className="flex items-center gap-2">
                                         <button 
-                                          onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) - 1)}
+                                          onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount ?? 1) - 1)}
                                           className="w-5 h-5 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all text-xs"
                                         >
                                           -
                                         </button>
-                                        <span className="font-mono font-bold w-6 text-center text-sm">{guest.giftCount || 1}</span>
+                                        <span className="font-mono font-bold w-6 text-center text-sm">{guest.giftCount ?? 1}</span>
                                         <button 
-                                          onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount || 1) + 1)}
+                                          onClick={() => handleUpdateGiftCount(guest.id, (guest.giftCount ?? 1) + 1)}
                                           className="w-5 h-5 flex items-center justify-center rounded-full bg-cream-dark text-wine/40 hover:text-wine hover:bg-cream transition-all text-xs"
                                         >
                                           +
@@ -2150,11 +2106,8 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-hidden floor-plan-container" ref={floorPlanContainerRef}>
-                    <FloorPlan 
-                      tables={state.tables} 
-                      onUpdatePosition={handleUpdateTablePosition}
-                    />
+                  <div className="flex-1 overflow-hidden floor-plan-container">
+                    <FloorPlan tables={state.tables} />
                   </div>
                 </motion.div>
               )}
