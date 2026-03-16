@@ -1982,7 +1982,8 @@ export default function App() {
                                   <tr key={guest.id} className={cn(
                                     "border-b border-cream-dark hover:bg-cream/50 transition-colors group",
                                     idx === arr.length - 1 && "border-0",
-                                    guest.giftReceived && "bg-cream/30"
+                                    guest.giftReceived && "bg-cream/30",
+                                    (guest.giftCount === 0) && "bg-stone-100 opacity-60"
                                   )}>
                                     {giftAttendanceFilter === 'not-attending' && (
                                       <td className="px-8 py-2">
