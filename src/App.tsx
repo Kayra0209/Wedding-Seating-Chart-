@@ -177,6 +177,22 @@ export default function App() {
     const totalGifts = allGuests.reduce((s, g) => s + (g.giftCount ?? 1), 0);
     const receivedGifts = allGuests.filter(g => g.giftReceived).reduce((s, g) => s + (g.giftCount ?? 1), 0);
     
+    const statsByRelationship = uniqueTags.map(tag => {
+      const tagGuests = allGuests.filter(g => g.relationship === tag);
+      const tagAttending = tagGuests.filter(g => g.attending);
+      const tagInvitations = tagAttending.filter(g => g.address && g.address.trim().length > 0);
+      const tagTotalGifts = tagGuests.reduce((s, g) => s + (g.giftCount ?? 1), 0);
+      const tagReceivedGifts = tagGuests.filter(g => g.giftReceived).reduce((s, g) => s + (g.giftCount ?? 1), 0);
+      
+      return {
+        tag,
+        invitations: tagInvitations.length,
+        preparedInvitations: tagInvitations.filter(g => g.isPrepared).length,
+        gifts: tagTotalGifts,
+        receivedGifts: tagReceivedGifts
+      };
+    });
+    
     return {
       totalRespondents: attending.length,
       totalPeople,
@@ -196,8 +212,9 @@ export default function App() {
       invitationProgress: invitationList.length > 0 ? Math.round((invitationList.filter(g => g.isPrepared).length / invitationList.length) * 100) : 0,
       tablesCount: state.tables.length,
       activeTables: state.tables.filter(t => t.guests.length > 0).length,
+      statsByRelationship
     };
-  }, [allGuests, state]);
+  }, [allGuests, state, uniqueTags]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1674,6 +1691,31 @@ export default function App() {
                   </div>
 
                   <div className="space-y-8">
+                    {/* Category Summary */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                      {stats.statsByRelationship.map(item => (
+                        item.invitations > 0 && (
+                          <div key={item.tag} className="bg-white p-3 rounded-xl border border-cream-dark shadow-sm hover:border-gold/50 transition-all">
+                            <div className="text-[10px] text-wine/30 font-bold uppercase mb-1 truncate" title={item.tag}>{item.tag}</div>
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-lg font-bold text-wine">{item.invitations}</span>
+                              <span className="text-[10px] text-wine/40">份</span>
+                            </div>
+                            <div className="mt-1 h-1 bg-cream-dark rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-emerald-500 transition-all" 
+                                style={{ width: `${(item.preparedInvitations / item.invitations) * 100}%` }} 
+                              />
+                            </div>
+                            <div className="flex justify-between text-[9px] mt-1 font-medium">
+                              <span className="text-emerald-600">已備 {item.preparedInvitations}</span>
+                              <span className="text-wine/30">{Math.round((item.preparedInvitations / item.invitations) * 100)}%</span>
+                            </div>
+                          </div>
+                        )
+                      ))}
+                    </div>
+
                     <div className="flex flex-wrap justify-between items-end gap-6">
                       <div className="flex gap-4">
                         <div className="bg-white px-6 py-3 rounded-xl border border-cream-dark shadow-sm text-center">
@@ -1861,6 +1903,31 @@ export default function App() {
                   </div>
 
                   <div className="space-y-8">
+                    {/* Category Summary */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                      {stats.statsByRelationship.map(item => (
+                        item.gifts > 0 && (
+                          <div key={item.tag} className="bg-white p-3 rounded-xl border border-cream-dark shadow-sm hover:border-gold/50 transition-all">
+                            <div className="text-[10px] text-wine/30 font-bold uppercase mb-1 truncate" title={item.tag}>{item.tag}</div>
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-lg font-bold text-wine">{item.gifts}</span>
+                              <span className="text-[10px] text-wine/40">份</span>
+                            </div>
+                            <div className="mt-1 h-1 bg-cream-dark rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-gold transition-all" 
+                                style={{ width: `${(item.receivedGifts / item.gifts) * 100}%` }} 
+                              />
+                            </div>
+                            <div className="flex justify-between text-[9px] mt-1 font-medium">
+                              <span className="text-gold">已領 {item.receivedGifts}</span>
+                              <span className="text-wine/30">{Math.round((item.receivedGifts / item.gifts) * 100)}%</span>
+                            </div>
+                          </div>
+                        )
+                      ))}
+                    </div>
+
                     <div className="flex flex-wrap justify-between items-end gap-6">
                       <div className="flex flex-col gap-4">
                         <div className="flex bg-cream p-1 rounded-xl border border-cream-dark w-fit">
