@@ -146,6 +146,45 @@ export default function App() {
     localStorage.setItem('wedding-seating-state', JSON.stringify(state));
   }, [state]);
 
+  const handleSwapTables = (id1: string, id2: string) => {
+    setState(prev => {
+      const index1 = prev.tables.findIndex(t => t.id === id1);
+      const index2 = prev.tables.findIndex(t => t.id === id2);
+      
+      if (index1 === -1 || index2 === -1) return prev;
+      
+      const newTables = [...prev.tables];
+      const temp = { ...newTables[index1] };
+      
+      // Swap content but keep original structure if needed? 
+      // Usually swapping means the tables literally switch spots in the list.
+      // However, we want to keep the IDs and objects mostly intact, just swap their positions.
+      newTables[index1] = { 
+        ...newTables[index2], 
+        number: temp.number // Keep the original number so the list reordering doesn't happen automatically by sort
+      };
+      newTables[index2] = { 
+        ...temp, 
+        number: prev.tables[index2].number // Keep the original number
+      };
+      
+      // Better yet: just swap the number property to change their sorted order?
+      // Since our FloorPlan sorts by number: .sort((a, b) => a.number - b.number)
+      
+      const t1 = prev.tables[index1];
+      const t2 = prev.tables[index2];
+      
+      return {
+        ...prev,
+        tables: prev.tables.map(t => {
+          if (t.id === id1) return { ...t, number: t2.number, name: t2.name, guests: t2.guests, capacity: t2.capacity };
+          if (t.id === id2) return { ...t, number: t1.number, name: t1.name, guests: t1.guests, capacity: t1.capacity };
+          return t;
+        })
+      };
+    });
+  };
+
   const allGuests = useMemo(() => {
     const tableGuests = state.tables.flatMap(t => t.guests);
     return [...state.unassigned, ...tableGuests];
@@ -2175,7 +2214,10 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex-1 overflow-hidden floor-plan-container">
-                    <FloorPlan tables={state.tables} />
+                    <FloorPlan 
+                      tables={state.tables} 
+                      onSwapTables={handleSwapTables}
+                    />
                   </div>
                 </motion.div>
               )}

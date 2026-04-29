@@ -1,4 +1,14 @@
 import React from 'react';
+import { 
+  DndContext, 
+  closestCenter, 
+  PointerSensor, 
+  useSensor, 
+  useSensors, 
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay
+} from '@dnd-kit/core';
 import { useSortable, SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Table, GuestGroup } from '../types';
@@ -13,6 +23,7 @@ function cn(...inputs: ClassValue[]) {
 
 interface FloorPlanProps {
   tables: Table[];
+  onSwapTables?: (id1: string, id2: string) => void;
 }
 
 interface SortableTableProps {
@@ -128,53 +139,111 @@ const SortableTable: React.FC<SortableTableProps> = ({ table, isMain = false }) 
   );
 };
 
-export const FloorPlan: React.FC<FloorPlanProps> = ({ tables }) => {
+export const FloorPlan: React.FC<FloorPlanProps> = ({ tables, onSwapTables }) => {
+  const [activeId, setActiveId] = React.useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
   const mainTable = tables.find(t => t.number === 1) || tables[0];
   const otherTables = tables
     .filter(t => t.id !== mainTable.id)
     .sort((a, b) => a.number - b.number);
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+    
+    if (over && active.id !== over.id) {
+      if (onSwapTables) {
+        onSwapTables(active.id as string, over.id as string);
+      }
+    }
+  };
+
+  const activeTable = activeId ? tables.find(t => t.id === activeId) : null;
+
   return (
-    <div className="w-full h-full bg-stone-50 p-8 overflow-auto custom-scrollbar">
-      <div className="max-w-6xl mx-auto bg-white border-4 border-cream-dark rounded-3xl p-12 pb-64 shadow-inner relative min-h-[1600px]">
-        
-        {/* Stage Area */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-wine rounded-b-3xl flex items-center justify-center shadow-lg z-10">
-          <span className="text-white font-serif text-2xl font-bold tracking-[1em] ml-[1em]">舞台 STAGE</span>
-        </div>
-
-        {/* Main Aisle Visuals (Stage to Entrance) */}
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 w-24 h-[calc(100%-200px)] bg-cream-dark/5 z-0" />
-
-        {/* Main Table Position (Top Left near stage) */}
-        <div className="absolute top-48 left-[5%] z-20">
-          <SortableTable table={mainTable} isMain={true} />
-        </div>
-
-
-
-        {/* Tables Arrangement: rows of 4 with central aisle */}
-        <div className="mt-96 relative z-20 px-8 flex flex-col items-center">
-          <div className="grid grid-cols-[repeat(2,minmax(0,1fr))_6rem_repeat(2,minmax(0,1fr))] gap-y-24 w-full max-w-5xl">
-            <SortableContext items={otherTables.map(t => t.id)} strategy={rectSortingStrategy}>
-              {otherTables.map((table, index) => (
-                <React.Fragment key={table.id}>
-                  {index > 0 && index % 4 === 2 && <div className="w-full flex items-center justify-center pointer-events-none" />}
-                  <SortableTable table={table} />
-                </React.Fragment>
-              ))}
-            </SortableContext>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="w-full h-full bg-stone-50 p-8 overflow-auto custom-scrollbar">
+        <div className="max-w-6xl mx-auto bg-white border-4 border-cream-dark rounded-3xl p-12 pb-64 shadow-inner relative min-h-[1600px]">
+          
+          {/* Stage Area */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-wine rounded-b-3xl flex items-center justify-center shadow-lg z-10">
+            <span className="text-white font-serif text-2xl font-bold tracking-[1em] ml-[1em]">舞台 STAGE</span>
           </div>
-        </div>
 
-        {/* Entrance Area Padding & Visual */}
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-full flex flex-col items-center gap-8">
-          <div className="w-3/4 h-0.5 bg-gradient-to-r from-transparent via-cream-dark to-transparent" />
-          <div className="w-48 h-4 bg-gold rounded-t-full flex items-center justify-center">
-            <span className="text-[10px] font-bold text-wine uppercase tracking-widest -mt-12 transition-all">入口 ENTRANCE</span>
+          {/* Main Aisle Visuals (T-Shape) */}
+          {/* Vertical Central Aisle */}
+          <div className="absolute top-24 left-1/2 -translate-x-1/2 w-24 h-[calc(100%-200px)] bg-cream-dark/10 z-0" />
+          
+          {/* Horizontal Aisle between Row 1 and Row 2 (approximate) */}
+          <div className="absolute top-[520px] left-0 w-full h-12 bg-cream-dark/5 z-0" />
+
+          {/* Main Table Position (Top Left near stage) */}
+          {/* Centered between Table 2 & 3: which are Col 1 & Col 2 on left side */}
+          <div className="absolute top-48 left-[18.5%] -translate-x-1/2 z-20">
+            <SortableTable table={mainTable} isMain={true} />
+          </div>
+
+          {/* Tables Arrangement: rows of 4 with central aisle */}
+          <div className="mt-[420px] relative z-20 px-8 flex flex-col items-center">
+            <div className="grid grid-cols-[repeat(2,minmax(0,1fr))_6rem_repeat(2,minmax(0,1fr))] gap-y-36 w-full max-w-5xl">
+              <SortableContext items={otherTables.map(t => t.id)} strategy={rectSortingStrategy}>
+                {otherTables.map((table, index) => (
+                  <React.Fragment key={table.id}>
+                    {/* Add central aisle placeholder */}
+                    {index % 4 === 2 && <div className="w-full flex items-center justify-center pointer-events-none" />}
+                    
+                    <div className={cn(
+                      "flex justify-center",
+                      // Add additional gap between Row 1 and Row 2 for horizontal aisle
+                      Math.floor(index / 4) === 1 ? "mt-12" : ""
+                    )}>
+                      <SortableTable table={table} />
+                    </div>
+                  </React.Fragment>
+                ))}
+              </SortableContext>
+            </div>
+          </div>
+
+          <DragOverlay>
+            {activeTable ? (
+              <div className="scale-110 opacity-80 ring-4 ring-gold border-gold rounded-full bg-white flex flex-col items-center justify-center w-32 h-32 shadow-2xl">
+                <span className="text-sm font-bold text-wine">第 {activeTable.number} 桌</span>
+                <div className="flex items-center gap-1 mt-1">
+                  <Users size={12} className="text-wine/30" />
+                  <span className="text-xs font-mono font-bold text-wine/60">
+                    {activeTable.guests.reduce((s, g) => s + g.total, 0)}/{activeTable.capacity}
+                  </span>
+                </div>
+              </div>
+            ) : null}
+          </DragOverlay>
+
+          {/* Entrance Area Padding & Visual */}
+          <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-full flex flex-col items-center gap-8">
+            <div className="w-3/4 h-0.5 bg-gradient-to-r from-transparent via-cream-dark to-transparent" />
+            <div className="w-48 h-4 bg-gold rounded-t-full flex items-center justify-center">
+              <span className="text-[10px] font-bold text-wine uppercase tracking-widest -mt-12 transition-all">入口 ENTRANCE</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </DndContext>
   );
 };
