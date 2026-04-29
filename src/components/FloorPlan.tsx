@@ -1,9 +1,11 @@
 import React from 'react';
+import { useSortable, SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Table, GuestGroup } from '../types';
 import { motion } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { Users, Crown } from 'lucide-react';
+import { Users, Crown, GripVertical } from 'lucide-react';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -13,43 +15,66 @@ interface FloorPlanProps {
   tables: Table[];
 }
 
-export const FloorPlan: React.FC<FloorPlanProps> = ({ tables }) => {
-  // Logic to arrange tables based on the user's description:
-  // - Rectangular hall
-  // - Stage and aisle form a T-shape
-  // - Main table (Table 1) is on the left of the stage
-  // - Other tables in two columns on each side, staggered
+interface SortableTableProps {
+  table: Table;
+  isMain?: boolean;
+}
 
-  const mainTable = tables.find(t => t.number === 1) || tables[0];
-  const otherTables = tables
-    .filter(t => t.id !== mainTable.id)
-    .sort((a, b) => a.number - b.number);
+const SortableTable: React.FC<SortableTableProps> = ({ table, isMain = false }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: table.id,
+    disabled: isMain, // Disable sorting for main table as requested
+    data: {
+      table,
+    },
+  });
 
-  const half = Math.ceil(otherTables.length / 2);
-  const leftSide = otherTables.slice(0, half);
-  const rightSide = otherTables.slice(half);
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 1,
+    opacity: isDragging ? 0.3 : 1,
+  };
 
-  // Split each side into 2 columns using a Z-pattern (row-major)
-  const col1 = leftSide.filter((_, i) => i % 2 === 0);
-  const col2 = leftSide.filter((_, i) => i % 2 !== 0);
-  const col3 = rightSide.filter((_, i) => i % 2 === 0);
-  const col4 = rightSide.filter((_, i) => i % 2 !== 0);
+  const totalGuests = table.guests.reduce((sum, g) => sum + g.total, 0);
+  const occupancy = (totalGuests / table.capacity) * 100;
 
-  const renderTable = (table: Table, isMain: boolean = false) => {
-    const totalGuests = table.guests.reduce((sum, g) => sum + g.total, 0);
-    const occupancy = (totalGuests / table.capacity) * 100;
-    
-    return (
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex justify-center items-center relative",
+        isDragging && "scale-110"
+      )}
+    >
       <motion.div
-        key={table.id}
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         className={cn(
           "relative w-32 h-32 rounded-full flex flex-col items-center justify-center border-2 transition-all shadow-md bg-white group",
-          isMain ? "border-gold bg-gold/5 ring-4 ring-gold/10" : "border-cream-dark hover:border-gold/50",
-          occupancy > 100 ? "border-red-400 bg-red-50" : ""
+          isMain ? "border-gold bg-gold/5 ring-4 ring-gold/10" : "border-cream-dark hover:border-gold/50 cursor-default",
+          occupancy > 100 ? "border-red-400 bg-red-50" : "",
+          isDragging && "ring-4 ring-gold/30 border-gold shadow-2xl"
         )}
       >
+        {!isMain && (
+          <div 
+            {...attributes} 
+            {...listeners}
+            className="absolute top-1 right-6 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded bg-cream-dark/50 text-wine/50 hover:text-wine cursor-grab active:cursor-grabbing z-10"
+          >
+            <GripVertical size={14} />
+          </div>
+        )}
+
         {isMain && (
           <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gold text-white p-1.5 rounded-full shadow-sm">
             <Crown size={16} />
@@ -95,76 +120,59 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ tables }) => {
                 </div>
               ))}
             </div>
-            {/* Tooltip Arrow */}
             <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-wine" />
           </div>
         )}
       </motion.div>
-    );
-  };
+    </div>
+  );
+};
+
+export const FloorPlan: React.FC<FloorPlanProps> = ({ tables }) => {
+  const mainTable = tables.find(t => t.number === 1) || tables[0];
+  const otherTables = tables
+    .filter(t => t.id !== mainTable.id)
+    .sort((a, b) => a.number - b.number);
 
   return (
     <div className="w-full h-full bg-stone-50 p-8 overflow-auto custom-scrollbar">
-      <div className="max-w-6xl mx-auto bg-white border-4 border-cream-dark rounded-3xl p-12 pb-48 shadow-inner relative min-h-[1400px]">
+      <div className="max-w-6xl mx-auto bg-white border-4 border-cream-dark rounded-3xl p-12 pb-64 shadow-inner relative min-h-[1600px]">
         
         {/* Stage Area */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-wine rounded-b-3xl flex items-center justify-center shadow-lg z-10">
           <span className="text-white font-serif text-2xl font-bold tracking-[1em] ml-[1em]">舞台 STAGE</span>
         </div>
 
-        {/* T-Shape Aisle */}
-        {/* Vertical Aisle */}
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 w-24 h-[calc(100%-120px)] bg-cream-dark/30 z-0" />
-        {/* Horizontal Aisle (Top) */}
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 w-[90%] h-12 bg-cream-dark/30 z-0" />
+        {/* Main Aisle Visuals (Stage to Entrance) */}
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 w-24 h-[calc(100%-200px)] bg-cream-dark/5 z-0" />
 
-        {/* Main Table Position (Left of stage) */}
-        <div className="absolute top-40 left-[15%] z-20">
-          {renderTable(mainTable, true)}
+        {/* Main Table Position (Top Left near stage) */}
+        <div className="absolute top-48 left-[5%] z-20">
+          <SortableTable table={mainTable} isMain={true} />
         </div>
 
-        {/* Tables Arrangement */}
-        <div className="mt-72 flex justify-center gap-x-48 relative z-20">
-          {/* Left Side Columns */}
-          <div className="flex gap-x-12">
-            <div className="flex flex-col gap-y-24">
-              {col1.map(table => (
-                <div key={table.id} className="flex justify-center">
-                  {renderTable(table)}
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col gap-y-24 mt-12">
-              {col2.map(table => (
-                <div key={table.id} className="flex justify-center">
-                  {renderTable(table)}
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Right Side Columns */}
-          <div className="flex gap-x-12">
-            <div className="flex flex-col gap-y-24 mt-12">
-              {col3.map(table => (
-                <div key={table.id} className="flex justify-center">
-                  {renderTable(table)}
-                </div>
+
+        {/* Tables Arrangement: rows of 4 with central aisle */}
+        <div className="mt-96 relative z-20 px-8 flex flex-col items-center">
+          <div className="grid grid-cols-[repeat(2,minmax(0,1fr))_6rem_repeat(2,minmax(0,1fr))] gap-y-24 w-full max-w-5xl">
+            <SortableContext items={otherTables.map(t => t.id)} strategy={rectSortingStrategy}>
+              {otherTables.map((table, index) => (
+                <React.Fragment key={table.id}>
+                  {index > 0 && index % 4 === 2 && <div className="w-full flex items-center justify-center pointer-events-none" />}
+                  <SortableTable table={table} />
+                </React.Fragment>
               ))}
-            </div>
-            <div className="flex flex-col gap-y-24">
-              {col4.map(table => (
-                <div key={table.id} className="flex justify-center">
-                  {renderTable(table)}
-                </div>
-              ))}
-            </div>
+            </SortableContext>
           </div>
         </div>
 
-        {/* Entrance */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-48 h-4 bg-gold rounded-t-full flex items-center justify-center">
-          <span className="text-[10px] font-bold text-wine uppercase tracking-widest -mt-8">入口 ENTRANCE</span>
+        {/* Entrance Area Padding & Visual */}
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-full flex flex-col items-center gap-8">
+          <div className="w-3/4 h-0.5 bg-gradient-to-r from-transparent via-cream-dark to-transparent" />
+          <div className="w-48 h-4 bg-gold rounded-t-full flex items-center justify-center">
+            <span className="text-[10px] font-bold text-wine uppercase tracking-widest -mt-12 transition-all">入口 ENTRANCE</span>
+          </div>
         </div>
       </div>
     </div>
