@@ -111,12 +111,12 @@ export const TableContainer: React.FC<TableContainerProps> = ({ table, onDelete,
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <div className={cn(
-              "w-8 h-8 rounded-sm flex items-center justify-center text-sm font-bold",
-              isOverCapacity ? "bg-gold text-white" : "bg-wine text-white"
+              "w-10 h-10 rounded-sm flex items-center justify-center text-base font-black shadow-sm",
+              isOverCapacity ? "bg-red-600 text-white" : "bg-slate-900 text-white"
             )}>
               {table.number}
             </div>
-            <span className="font-bold text-wine">{table.number === 1 ? "主桌" : "桌次"}</span>
+            <span className="font-black text-slate-900 text-lg">{table.number === 1 ? "主桌" : "桌次"}</span>
           </div>
           
           <div className="flex items-center gap-2">
@@ -174,9 +174,12 @@ export const TableContainer: React.FC<TableContainerProps> = ({ table, onDelete,
         <input 
           type="text"
           value={table.name || ''}
-          placeholder="輸入桌次名稱..."
+          placeholder="輸入桌次名稱 (例如: 親友桌)..."
           onChange={(e) => onUpdateName?.(table.id, e.target.value)}
-          className="w-full px-2 py-1 bg-white/50 border border-transparent hover:border-cream-dark focus:border-gold/30 focus:bg-white rounded-md text-xs font-medium focus:outline-none transition-all"
+          className={cn(
+            "w-full px-2 py-1.5 bg-white/70 border border-cream-dark hover:border-slate-400 focus:border-slate-900 focus:bg-white rounded-md text-xs transition-all outline-none",
+            table.name ? "font-bold text-slate-900 border-slate-300" : "font-medium text-slate-400"
+          )}
         />
       </div>
 

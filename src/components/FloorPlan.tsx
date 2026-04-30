@@ -91,11 +91,11 @@ const SortableTable: React.FC<SortableTableProps> = ({ table, isMain = false }) 
             <Crown size={16} />
           </div>
         )}
-        <span className={cn("text-sm font-bold", isMain ? "text-gold" : "text-wine")}>
+        <span className={cn("text-base font-black", isMain ? "text-gold" : "text-slate-950")}>
           {isMain ? "主桌" : `第 ${table.number} 桌`}
         </span>
         {table.name && (
-          <span className="text-[10px] text-wine/40 font-medium truncate max-w-[80%] text-center">
+          <span className="text-xs text-slate-700 font-bold truncate max-w-[85%] text-center">
             {table.name}
           </span>
         )}
@@ -223,8 +223,13 @@ export const FloorPlan: React.FC<FloorPlanProps> = ({ tables, onSwapTables }) =>
 
           <DragOverlay>
             {activeTable ? (
-              <div className="scale-110 opacity-80 ring-4 ring-gold border-gold rounded-full bg-white flex flex-col items-center justify-center w-32 h-32 shadow-2xl">
-                <span className="text-sm font-bold text-wine">第 {activeTable.number} 桌</span>
+              <div className="scale-110 opacity-90 ring-4 ring-gold border-gold rounded-full bg-white flex flex-col items-center justify-center w-36 h-36 shadow-2xl">
+                <span className="text-base font-black text-slate-950">第 {activeTable.number} 桌</span>
+                {activeTable.name && (
+                  <span className="text-xs text-slate-600 font-bold truncate max-w-[80%] px-2">
+                    {activeTable.name}
+                  </span>
+                )}
                 <div className="flex items-center gap-1 mt-1">
                   <Users size={12} className="text-wine/30" />
                   <span className="text-xs font-mono font-bold text-wine/60">
