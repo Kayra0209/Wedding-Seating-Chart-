@@ -12,6 +12,7 @@ import {
 import { useSortable, SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Table, GuestGroup } from '../types';
+import { getTableStats } from '../utils/tableUtils';
 import { motion } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -54,8 +55,7 @@ const SortableTable: React.FC<SortableTableProps> = ({ table, isMain = false }) 
     opacity: isDragging ? 0.3 : 1,
   };
 
-  const totalGuests = table.guests.reduce((sum, g) => sum + g.total, 0);
-  const occupancy = (totalGuests / table.capacity) * 100;
+  const { currentTotal, occupancy, isOverCapacity } = getTableStats(table);
 
   return (
     <div
@@ -72,7 +72,7 @@ const SortableTable: React.FC<SortableTableProps> = ({ table, isMain = false }) 
         className={cn(
           "relative w-32 h-32 rounded-full flex flex-col items-center justify-center border-2 transition-all shadow-md bg-white group",
           isMain ? "border-gold bg-gold/5 ring-4 ring-gold/10" : "border-cream-dark hover:border-gold/50 cursor-default",
-          occupancy > 100 ? "border-red-400 bg-red-50" : "",
+          isOverCapacity ? "border-red-400 bg-red-50" : "",
           isDragging && "ring-4 ring-gold/30 border-gold shadow-2xl"
         )}
       >
@@ -102,7 +102,7 @@ const SortableTable: React.FC<SortableTableProps> = ({ table, isMain = false }) 
         <div className="flex items-center gap-1 mt-1">
           <Users size={12} className="text-wine/30" />
           <span className="text-xs font-mono font-bold text-wine/60">
-            {totalGuests}/{table.capacity}
+            {currentTotal}/{table.capacity}
           </span>
         </div>
         
@@ -111,7 +111,7 @@ const SortableTable: React.FC<SortableTableProps> = ({ table, isMain = false }) 
           <div 
             className={cn(
               "h-full transition-all duration-500",
-              occupancy > 100 ? "bg-red-500" : occupancy > 80 ? "bg-gold" : "bg-emerald-500"
+              isOverCapacity ? "bg-red-500" : occupancy > 80 ? "bg-gold" : "bg-emerald-500"
             )}
             style={{ width: `${Math.min(occupancy, 100)}%` }}
           />
@@ -121,7 +121,7 @@ const SortableTable: React.FC<SortableTableProps> = ({ table, isMain = false }) 
         {table.guests.length > 0 && (
           <div className="absolute invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 z-50 bottom-full mb-4 left-1/2 -translate-x-1/2 w-48 bg-wine text-white p-3 rounded-xl shadow-2xl pointer-events-none">
             <div className="text-[10px] uppercase tracking-widest text-white/40 mb-2 border-b border-white/10 pb-1">
-              賓客名單 ({totalGuests}位)
+              賓客名單 ({currentTotal}位)
             </div>
             <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
               {table.guests.map((guest, i) => (

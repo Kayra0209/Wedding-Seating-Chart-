@@ -227,6 +227,7 @@ export default function App() {
         tag,
         invitations: tagInvitations.length,
         preparedInvitations: tagInvitations.filter(g => g.isPrepared).length,
+        handDelivered: tagInvitations.filter(g => g.isHandDelivered).length,
         gifts: tagTotalGifts,
         receivedGifts: tagReceivedGifts
       };
@@ -248,6 +249,7 @@ export default function App() {
       receivedGifts,
       seatingProgress: totalPeople > 0 ? Math.round((totalSeated / totalPeople) * 100) : 0,
       giftProgress: totalGifts > 0 ? Math.round((receivedGifts / totalGifts) * 100) : 0,
+      totalHandDelivered: invitationList.filter(g => g.isHandDelivered).length,
       invitationProgress: invitationList.length > 0 ? Math.round((invitationList.filter(g => g.isPrepared).length / invitationList.length) * 100) : 0,
       tablesCount: state.tables.length,
       activeTables: state.tables.filter(t => t.guests.length > 0).length,
@@ -1748,6 +1750,7 @@ export default function App() {
                             </div>
                             <div className="flex justify-between text-[9px] mt-1 font-medium">
                               <span className="text-emerald-600">已備 {item.preparedInvitations}</span>
+                              <span className="text-wine/40">親送 {item.handDelivered}</span>
                               <span className="text-wine/30">{Math.round((item.preparedInvitations / item.invitations) * 100)}%</span>
                             </div>
                           </div>
@@ -1764,6 +1767,10 @@ export default function App() {
                         <div className="bg-gold/10 px-6 py-3 rounded-xl border border-gold/20 shadow-sm text-center">
                           <span className="block text-[10px] text-gold font-bold uppercase mb-1">已準備</span>
                           <span className="text-2xl font-bold text-gold">{stats.needInvitation.filter(g => g.isPrepared).length}</span>
+                        </div>
+                        <div className="bg-wine/5 px-6 py-3 rounded-xl border border-wine/10 shadow-sm text-center">
+                          <span className="block text-[10px] text-wine/50 font-bold uppercase mb-1">親送總數</span>
+                          <span className="text-2xl font-bold text-wine">{stats.totalHandDelivered}</span>
                         </div>
                       </div>
                       

@@ -4,6 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Table, GuestGroup } from '../types';
 import { GuestCard } from './GuestCard';
+import { getTableStats } from '../utils/tableUtils';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { AlertCircle, UserCheck, Trash2, Armchair, Leaf, CheckCircle2, GripVertical } from 'lucide-react';
@@ -54,11 +55,13 @@ export const TableContainer: React.FC<TableContainerProps> = ({ table, onDelete,
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const currentTotal = table.guests.reduce((sum, g) => sum + g.total, 0);
-  const totalChairs = table.guests.reduce((sum, g) => sum + g.childChairs, 0);
-  const totalVeg = table.guests.reduce((sum, g) => sum + g.vegetarian, 0);
-  const isOverCapacity = currentTotal > table.capacity;
-  const isFull = currentTotal === table.capacity;
+  const { 
+    currentTotal, 
+    totalChairs, 
+    totalVeg, 
+    isOverCapacity, 
+    isFull 
+  } = getTableStats(table);
 
   return (
     <div
@@ -149,15 +152,20 @@ export const TableContainer: React.FC<TableContainerProps> = ({ table, onDelete,
               <div className="flex items-center gap-0.5">
                 <span>{currentTotal}</span>
                 <span className="opacity-30">/</span>
-                <input 
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={table.capacity}
-                  onChange={(e) => onUpdateCapacity?.(table.id, parseInt(e.target.value) || 1)}
-                  className="w-7 bg-transparent border-none p-0 text-center focus:outline-none focus:ring-0 font-bold"
-                  title="點擊修改桌位容量"
-                />
+                <div className="flex items-center">
+                  <input 
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={table.capacity}
+                    onChange={(e) => onUpdateCapacity?.(table.id, parseInt(e.target.value) || 1)}
+                    className="w-7 bg-transparent border-none p-0 text-center focus:outline-none focus:ring-0 font-bold"
+                    title="點擊修改桌位容量"
+                  />
+                  {currentTotal > table.capacity && currentTotal <= table.capacity + 1 && (totalChairs > 0 || totalVeg > 0) && (
+                    <span className="text-[8px] text-emerald-500 font-black ml-0.5" title="提供 1 位額外加座">+1</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
